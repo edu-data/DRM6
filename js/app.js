@@ -90,6 +90,8 @@
   var lastPayload = null;
   var surveyStarted = false;
   var SESSION_KEY = 'drm6_survey_state';
+  var DEMO_STORAGE_PREFIX = 'drm6_demo_';
+  var savedDemographics = null;
 
   function saveToSession() {
     try {
@@ -120,6 +122,21 @@
     } catch (e) { /* corrupted or unavailable */ }
   }
 
+  function normalizePhone(p) { return p.replace(/[^0-9]/g, ''); }
+
+  function loadDemographics(phone) {
+    try {
+      var raw = localStorage.getItem(DEMO_STORAGE_PREFIX + normalizePhone(phone));
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function saveDemographicsToStorage(phone, demo) {
+    try {
+      localStorage.setItem(DEMO_STORAGE_PREFIX + normalizePhone(phone), JSON.stringify(demo));
+    } catch (e) { /* ignore */ }
+  }
+
   var $id = function(id) { return document.getElementById(id); };
   var pages = ['pageIntro', 'pageActivities', 'pageEmotion', 'pageDemo', 'completionScreen'];
 
@@ -141,6 +158,12 @@
       }
       $id('phoneNumber').classList.remove('field-error');
       surveyStarted = true;
+      // Check for saved demographics (repeat survey)
+      savedDemographics = loadDemographics(phone);
+      if (savedDemographics) {
+        $id('toDemoBtn').textContent = '✅ 설문 완료';
+        showToast('ℹ️ 이전에 입력한 인적사항이 자동 적용됩니다.');
+      }
       // Add initial activity for each block
       TIME_BLOCKS.forEach(function(block) {
         if (activities[block].length === 0) addActivity(block);
@@ -205,7 +228,11 @@
     $id('toDemoBtn').addEventListener('click', function() {
       saveEmotionCard();
       if (!validateAllEmotions()) return;
-      navigateTo('pageDemo');
+      if (savedDemographics) {
+        handleComplete(); // Skip demographics — reuse saved data
+      } else {
+        navigateTo('pageDemo');
+      }
     });
 
     // Demo nav
@@ -739,46 +766,57 @@
   // ── Submit ──
   function handleComplete() {
     if (isSubmitting || isSubmitted) return;
-    var genderEl = document.querySelector('input[name="gender"]:checked');
-    var locEl = $id('schoolLocation');
-    var typeEl = $id('schoolType');
-    var gradeEl = document.querySelector('input[name="grade"]:checked');
-    var careerEl = document.querySelector('input[name="careerDecision"]:checked');
 
-    var gender = genderEl ? genderEl.value : '';
-    var schoolLocation = locEl ? locEl.value : '';
-    var schoolType = typeEl ? typeEl.value : '';
-    var grade = gradeEl ? gradeEl.value : '';
-    var careerDecision = careerEl ? careerEl.value : '';
+    var demo;
+    if (savedDemographics) {
+      demo = savedDemographics;
+    } else {
+      var genderEl = document.querySelector('input[name="gender"]:checked');
+      var locEl = $id('schoolLocation');
+      var typeEl = $id('schoolType');
+      var gradeEl = document.querySelector('input[name="grade"]:checked');
+      var careerEl = document.querySelector('input[name="careerDecision"]:checked');
 
-    if (!gender) { showToast('⚠️ 성별을 선택해 주세요.'); return; }
-    if (!schoolLocation) { showToast('⚠️ 학교 소재지를 선택해 주세요.'); return; }
-    if (!schoolType) { showToast('⚠️ 학교 유형을 선택해 주세요.'); return; }
-    if (!grade) { showToast('⚠️ 학년을 선택해 주세요.'); return; }
-    if (!careerDecision) { showToast('⚠️ 진로 결정 여부를 선택해 주세요.'); return; }
+      var gender = genderEl ? genderEl.value : '';
+      var schoolLocation = locEl ? locEl.value : '';
+      var schoolType = typeEl ? typeEl.value : '';
+      var grade = gradeEl ? gradeEl.value : '';
+      var careerDecision = careerEl ? careerEl.value : '';
+
+      if (!gender) { showToast('⚠️ 성별을 선택해 주세요.'); return; }
+      if (!schoolLocation) { showToast('⚠️ 학교 소재지를 선택해 주세요.'); return; }
+      if (!schoolType) { showToast('⚠️ 학교 유형을 선택해 주세요.'); return; }
+      if (!grade) { showToast('⚠️ 학년을 선택해 주세요.'); return; }
+      if (!careerDecision) { showToast('⚠️ 진로 결정 여부를 선택해 주세요.'); return; }
+
+      demo = {
+        gender: gender,
+        schoolLocation: schoolLocation,
+        schoolType: schoolType,
+        grade: grade,
+        careerDecision: careerDecision
+      };
+    }
 
     setSubmitButtonState(true);
     navigateTo('completionScreen');
 
     var allActivities = collectAllActivities();
+    var phone = $id('phoneNumber').value.trim();
     var payload = {
-      phoneNumber: $id('phoneNumber').value.trim(),
+      phoneNumber: phone,
       activities: allActivities,
       activityCounts: {
         morning: activities.morning.length,
         afternoon: activities.afternoon.length,
         evening: activities.evening.length
       },
-      demographics: {
-        gender: gender,
-        schoolLocation: schoolLocation,
-        schoolType: schoolType,
-        grade: grade,
-        careerDecision: careerDecision
-      }
+      demographics: demo
     };
 
     lastPayload = payload;
+    // Save demographics for future repeat surveys
+    saveDemographicsToStorage(phone, demo);
     submitData(payload);
   }
 
