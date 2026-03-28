@@ -10,7 +10,9 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.openById('1p2QRk3zNjpg9VDXBoLsJOTRLV0bW24vsj1P-6X2dTHM');
     var respondentId = Utilities.getUuid();
-    var timestamp = new Date().toISOString();
+    var KST = 'Asia/Seoul';
+    var now = new Date();
+    var timestamp = Utilities.formatDate(now, KST, 'yyyy-MM-dd HH:mm:ss');
 
     var allActivities = data.activities || [];
     var counts = data.activityCounts || {};
@@ -49,10 +51,9 @@ function doPost(e) {
     ];
 
     var actSheet = getOrCreateSheet(ss, 'Activities', actHeaders);
-    var now = new Date();
     var dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-    var dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    var dayOfWeek = dayNames[now.getDay()];
+    var dateStr = Utilities.formatDate(now, KST, 'yyyy-MM-dd');
+    var dayOfWeek = dayNames[parseInt(Utilities.formatDate(now, KST, 'u')) % 7];
 
     allActivities.forEach(function(a) {
       actSheet.appendRow([
