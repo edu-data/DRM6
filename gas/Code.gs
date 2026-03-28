@@ -41,7 +41,7 @@ function doPost(e) {
 
     // 2. Activities Sheet (통합 - TimeBlock으로 구분)
     var actHeaders = [
-      'RespondentID', 'Date', 'DayOfWeek', 'TimeBlock', 'ActivityNum',
+      'RespondentID', 'PhoneNumber', 'Date', 'DayOfWeek', 'TimeBlock', 'ActivityNum',
       'Activity', 'TimeCategory', 'Companion', 'Location', 'Reason',
       'EmoJoyful', 'EmoHappy', 'EmoComfortable',
       'EmoAnnoyed', 'EmoNegative', 'EmoLethargic',
@@ -57,6 +57,7 @@ function doPost(e) {
     allActivities.forEach(function(a) {
       actSheet.appendRow([
         respondentId,
+        data.phoneNumber || '',
         dateStr,
         dayOfWeek,
         a.timeBlock || '',
