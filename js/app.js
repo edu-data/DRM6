@@ -24,9 +24,9 @@
   };
 
   var TIME_OPTIONS = [
-    '교과시간', '점심시간', '학교방과후시간', '동아리시간', '상담시간',
-    '학원시간', '아침시간(등교 전)', '오전(주말/휴일)', '오후(주말/휴일)',
-    '저녁시간', '야간/취침 전', '귀가후시간', '기타'
+    '교과시간', '전문교과', '쉬는시간', '점심시간', '학교방과후시간', '동아리시간', '상담시간',
+    '학원시간', '아침시간(등교 전)',
+    '저녁시간', '귀가후시간', '취침전', '기타'
   ];
 
   var SUBJECT_OPTIONS = [
@@ -67,8 +67,16 @@
   ];
 
   var PLACEHOLDERS = {
-    activity: '예: (9시~10시) 수학 수업에서 미적분 문제를 친구들과 함께 풀었다.',
-    reason: '예: 어려웠지만 친구와 같이 풀어서 재미있었다.'
+    activity: {
+      morning: '예: (9시~10시) 사회시간 모둠별 활동, 수행평가, 쉬는시간 친구들과 수다',
+      afternoon: '예: (2시~3시) 진로탐색활동, 생기부기록 활동, 운동장에서 뛰어놀음',
+      evening: '예: (7시~8시) 식사, 학원 수업, 가족과 대화'
+    },
+    reason: {
+      morning: '예: 어려웠지만 친구와 같이 풀어서 재미있었다.',
+      afternoon: '예: 새로운 활동을 해봐서 뿌듯했다.',
+      evening: '예: 가족과 함께 식사하면서 편안했다.'
+    }
   };
 
   // ── State ──
@@ -366,7 +374,7 @@
     data.time = timeSel ? timeSel.value : '';
     var timeEtc = document.getElementById(prefix + 'time_' + id + '_etc');
     data.time_etc = (timeEtc && timeEtc.value) ? timeEtc.value : '';
-    if (data.time === '교과시간') {
+    if (data.time === '교과시간' || data.time === '전문교과') {
       var subSel = document.getElementById(prefix + 'time_' + id + '_subject');
       data.time_subject = subSel ? subSel.value : '';
     }
@@ -405,7 +413,7 @@
         var etc = document.getElementById(prefix + 'time_' + id + '_etc');
         if (etc) { etc.style.display = 'block'; etc.value = data.time_etc || ''; }
       }
-      if (data.time === '교과시간') {
+      if (data.time === '교과시간' || data.time === '전문교과') {
         var sub = document.getElementById(prefix + 'time_' + id + '_subject');
         if (sub) { sub.style.display = 'block'; if (data.time_subject) sub.value = data.time_subject; }
       }
@@ -469,8 +477,8 @@
       '</div>' +
       '<div class="activity-card__grid">' +
         '<div class="form-group full-width">' +
-          '<label class="form-label">📝 일화 (무엇을 했나요?)</label>' +
-          '<textarea class="form-textarea" id="' + prefix + 'activity_' + id + '" placeholder="' + PLACEHOLDERS.activity + '" rows="2">' + escapeHtml(fd.activity || '') + '</textarea>' +
+          '<label class="form-label">📝 일화 (기억에 남는 활동은?)</label>' +
+          '<textarea class="form-textarea" id="' + prefix + 'activity_' + id + '" placeholder="' + (PLACEHOLDERS.activity[block] || '') + '" rows="2">' + escapeHtml(fd.activity || '') + '</textarea>' +
         '</div>' +
         '<div class="form-group">' +
           '<label class="form-label">⏰ 무슨 시간?</label>' +
@@ -486,7 +494,7 @@
         '</div>' +
         '<div class="form-group">' +
           '<label class="form-label">💬 이유</label>' +
-          '<textarea class="form-textarea" id="' + prefix + 'reason_' + id + '" placeholder="' + PLACEHOLDERS.reason + '" rows="2" style="min-height:50px;">' + escapeHtml(fd.reason || '') + '</textarea>' +
+          '<textarea class="form-textarea" id="' + prefix + 'reason_' + id + '" placeholder="' + (PLACEHOLDERS.reason[block] || '') + '" rows="2" style="min-height:50px;">' + escapeHtml(fd.reason || '') + '</textarea>' +
         '</div>' +
       '</div>';
 
@@ -515,7 +523,7 @@
         if (etcEl) etcEl.style.display = sel.value === '기타' ? 'block' : 'none';
         if (sel.id.indexOf('_time_') !== -1) {
           var subEl = document.getElementById(sel.id + '_subject');
-          if (subEl) subEl.style.display = sel.value === '교과시간' ? 'block' : 'none';
+          if (subEl) subEl.style.display = (sel.value === '교과시간' || sel.value === '전문교과') ? 'block' : 'none';
         }
       });
     });
@@ -533,7 +541,7 @@
       '<input type="text" class="form-input" id="' + name + '_etc" placeholder="직접 입력해 주세요" style="display:' + (selectedValue === '기타' ? 'block' : 'none') + '; margin-top:0.3rem; font-size:0.82rem;" />';
 
     if (isTimeField) {
-      var showSubject = selectedValue === '교과시간';
+      var showSubject = (selectedValue === '교과시간' || selectedValue === '전문교과');
       var subOpts = SUBJECT_OPTIONS.map(function(s) {
         return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
       }).join('');
@@ -564,7 +572,7 @@
         showToast('⚠️ ' + TIME_BLOCK_LABELS[block] + ' 활동 ' + (i + 1) + '의 시간을 선택해 주세요.');
         return false;
       }
-      if (d.time === '교과시간' && !d.time_subject) {
+      if ((d.time === '교과시간' || d.time === '전문교과') && !d.time_subject) {
         switchBlock(block);
         currentIdx[block] = i; renderCurrentCard(block); updateNavBar(block);
         showToast('⚠️ ' + TIME_BLOCK_LABELS[block] + ' 활동 ' + (i + 1) + '의 교과시간 과목을 선택해 주세요.');
@@ -723,7 +731,7 @@
 
   // ── Helper: display values ──
   function getDisplayTime(fd) {
-    if (fd.time === '교과시간' && fd.time_subject) return '교과시간(' + fd.time_subject + ')';
+    if ((fd.time === '교과시간' || fd.time === '전문교과') && fd.time_subject) return fd.time + '(' + fd.time_subject + ')';
     if (fd.time === '기타' && fd.time_etc) return '기타: ' + fd.time_etc;
     return fd.time || '';
   }
