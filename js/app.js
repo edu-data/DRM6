@@ -50,21 +50,27 @@
   ];
 
   var EMOTIONS = [
-    { group: 'positive', label: '긍정 정서', icon: '😊', color: 'positive', items: [
-      { key: 'emo_joyful', label: '즐거운' },
-      { key: 'emo_happy', label: '행복한' },
-      { key: 'emo_comfortable', label: '편안한' }
-    ]},
-    { group: 'negative', label: '부정 정서', icon: '😞', color: 'negative', items: [
-      { key: 'emo_annoyed', label: '짜증나는' },
-      { key: 'emo_negative', label: '부정적인' },
-      { key: 'emo_lethargic', label: '무기력한' }
-    ]},
-    { group: 'meaning', label: '의미·가치', icon: '✨', color: 'meaning', items: [
-      { key: 'emo_meaningful', label: '의미있는' },
-      { key: 'emo_valuable', label: '가치있는' },
-      { key: 'emo_satisfying', label: '만족할만한' }
-    ]}
+    {
+      group: 'positive', label: '긍정 정서', icon: '😊', color: 'positive', items: [
+        { key: 'emo_joyful', label: '즐거운' },
+        { key: 'emo_happy', label: '행복한' },
+        { key: 'emo_comfortable', label: '편안한' }
+      ]
+    },
+    {
+      group: 'negative', label: '부정 정서', icon: '😞', color: 'negative', items: [
+        { key: 'emo_annoyed', label: '짜증나는' },
+        { key: 'emo_negative', label: '부정적인' },
+        { key: 'emo_lethargic', label: '무기력한' }
+      ]
+    },
+    {
+      group: 'meaning', label: '의미·가치', icon: '✨', color: 'meaning', items: [
+        { key: 'emo_meaningful', label: '의미있는' },
+        { key: 'emo_valuable', label: '가치있는' },
+        { key: 'emo_satisfying', label: '만족할만한' }
+      ]
+    }
   ];
 
   var PLACEHOLDERS = {
@@ -151,18 +157,18 @@
     } catch (e) { /* ignore */ }
   }
 
-  var $id = function(id) { return document.getElementById(id); };
+  var $id = function (id) { return document.getElementById(id); };
   var pages = ['pageIntro', 'pageActivities', 'pageEmotion', 'pageDemo', 'completionScreen'];
 
-  window.addEventListener('beforeunload', function(e) {
+  window.addEventListener('beforeunload', function (e) {
     if (surveyStarted && !isSubmitted) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     $id('phoneNumber').addEventListener('input', formatPhoneNumber);
 
     // Intro
-    $id('startSurveyBtn').addEventListener('click', function() {
+    $id('startSurveyBtn').addEventListener('click', function () {
       var phone = $id('phoneNumber').value.trim();
       if (!phone || phone.replace(/-/g, '').length < 10) {
         showToast('⚠️ 핸드폰 번호를 정확히 입력해 주세요.');
@@ -178,7 +184,7 @@
         showToast('ℹ️ 이전에 입력한 인적사항이 자동 적용됩니다.');
       }
       // Add initial activity for each block
-      TIME_BLOCKS.forEach(function(block) {
+      TIME_BLOCKS.forEach(function (block) {
         if (activities[block].length === 0) addActivity(block);
       });
       visitedBlocks = { morning: true, afternoon: false, evening: false };
@@ -187,11 +193,11 @@
       navigateTo('pageActivities');
     });
 
-    $id('phoneNumber').addEventListener('focus', function() { this.classList.remove('field-error'); });
+    $id('phoneNumber').addEventListener('focus', function () { this.classList.remove('field-error'); });
 
     // Time tabs (restricted: only visited blocks)
-    document.querySelectorAll('.time-tab').forEach(function(tab) {
-      tab.addEventListener('click', function() {
+    document.querySelectorAll('.time-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
         var targetBlock = tab.dataset.block;
         if (!visitedBlocks[targetBlock]) return; // can't jump to unvisited
         saveCurrentCard(activeBlock);
@@ -200,27 +206,27 @@
     });
 
     // Activity nav - Morning
-    $id('morningPrevBtn').addEventListener('click', function() { saveCurrentCard('morning'); moveCard('morning', -1); });
-    $id('morningNextBtn').addEventListener('click', function() { saveCurrentCard('morning'); moveCard('morning', 1); });
-    $id('addMorningBtn').addEventListener('click', function() { addActivity('morning'); });
+    $id('morningPrevBtn').addEventListener('click', function () { saveCurrentCard('morning'); moveCard('morning', -1); });
+    $id('morningNextBtn').addEventListener('click', function () { saveCurrentCard('morning'); moveCard('morning', 1); });
+    $id('addMorningBtn').addEventListener('click', function () { addActivity('morning'); });
 
     // Activity nav - Afternoon
-    $id('afternoonPrevBtn').addEventListener('click', function() { saveCurrentCard('afternoon'); moveCard('afternoon', -1); });
-    $id('afternoonNextBtn').addEventListener('click', function() { saveCurrentCard('afternoon'); moveCard('afternoon', 1); });
-    $id('addAfternoonBtn').addEventListener('click', function() { addActivity('afternoon'); });
+    $id('afternoonPrevBtn').addEventListener('click', function () { saveCurrentCard('afternoon'); moveCard('afternoon', -1); });
+    $id('afternoonNextBtn').addEventListener('click', function () { saveCurrentCard('afternoon'); moveCard('afternoon', 1); });
+    $id('addAfternoonBtn').addEventListener('click', function () { addActivity('afternoon'); });
 
     // Activity nav - Evening
-    $id('eveningPrevBtn').addEventListener('click', function() { saveCurrentCard('evening'); moveCard('evening', -1); });
-    $id('eveningNextBtn').addEventListener('click', function() { saveCurrentCard('evening'); moveCard('evening', 1); });
-    $id('addEveningBtn').addEventListener('click', function() { addActivity('evening'); });
+    $id('eveningPrevBtn').addEventListener('click', function () { saveCurrentCard('evening'); moveCard('evening', -1); });
+    $id('eveningNextBtn').addEventListener('click', function () { saveCurrentCard('evening'); moveCard('evening', 1); });
+    $id('addEveningBtn').addEventListener('click', function () { addActivity('evening'); });
 
     // ── Block-level sequential navigation (활동 기록) ──
     // Morning: ← 이전(인트로) | 다음: 오후 활동 기록 →
-    $id('morningBackBtn').addEventListener('click', function() {
+    $id('morningBackBtn').addEventListener('click', function () {
       saveCurrentCard('morning');
       navigateTo('pageIntro');
     });
-    $id('morningNextBlockBtn').addEventListener('click', function() {
+    $id('morningNextBlockBtn').addEventListener('click', function () {
       saveCurrentCard('morning');
       if (activities['morning'].length < MIN_ACTIVITIES) {
         showToast('⚠️ 오전·점심 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
@@ -233,11 +239,11 @@
     });
 
     // Afternoon: ← 오전·점심으로 | 다음: 저녁 활동 기록 →
-    $id('afternoonBackBtn').addEventListener('click', function() {
+    $id('afternoonBackBtn').addEventListener('click', function () {
       saveCurrentCard('afternoon');
       switchBlock('morning');
     });
-    $id('afternoonNextBlockBtn').addEventListener('click', function() {
+    $id('afternoonNextBlockBtn').addEventListener('click', function () {
       saveCurrentCard('afternoon');
       if (activities['afternoon'].length < MIN_ACTIVITIES) {
         showToast('⚠️ 오후 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
@@ -250,11 +256,11 @@
     });
 
     // Evening: ← 오후로 | 다음: 정서 기록 →
-    $id('eveningBackBtn').addEventListener('click', function() {
+    $id('eveningBackBtn').addEventListener('click', function () {
       saveCurrentCard('evening');
       switchBlock('afternoon');
     });
-    $id('eveningNextBlockBtn').addEventListener('click', function() {
+    $id('eveningNextBlockBtn').addEventListener('click', function () {
       saveCurrentCard('evening');
       if (activities['evening'].length < MIN_ACTIVITIES) {
         showToast('⚠️ 저녁 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
@@ -268,11 +274,11 @@
     });
 
     // ── Emotion nav (within block) ──
-    $id('emotionPrevBtn').addEventListener('click', function() { saveEmotionCard(); moveEmotionInBlock(-1); });
-    $id('emotionNextBtn').addEventListener('click', function() { saveEmotionCard(); moveEmotionInBlock(1); });
+    $id('emotionPrevBtn').addEventListener('click', function () { saveEmotionCard(); moveEmotionInBlock(-1); });
+    $id('emotionNextBtn').addEventListener('click', function () { saveEmotionCard(); moveEmotionInBlock(1); });
 
     // ── Emotion block-level navigation ──
-    $id('emotionBackBlockBtn').addEventListener('click', function() {
+    $id('emotionBackBlockBtn').addEventListener('click', function () {
       saveEmotionCard();
       if (emotionBlockIdx <= 0) {
         // Go back to activities (evening block)
@@ -285,7 +291,7 @@
       }
     });
 
-    $id('emotionNextBlockBtn').addEventListener('click', function() {
+    $id('emotionNextBlockBtn').addEventListener('click', function () {
       saveEmotionCard();
       // Validate current block's emotions
       if (!validateBlockEmotions(TIME_BLOCKS[emotionBlockIdx])) return;
@@ -305,12 +311,12 @@
     });
 
     // Demo nav
-    $id('backToEmotionBtn').addEventListener('click', function() {
+    $id('backToEmotionBtn').addEventListener('click', function () {
       emotionBlockIdx = TIME_BLOCKS.length - 1;
       renderEmotionBlockView();
       navigateTo('pageEmotion');
     });
-    $id('completeBtn').addEventListener('click', function() { handleComplete(); });
+    $id('completeBtn').addEventListener('click', function () { handleComplete(); });
 
     // Restore saved progress
     restoreFromSession();
@@ -319,7 +325,7 @@
   // ── Navigation ──
   function navigateTo(pageId) {
     if (isSubmitted && pageId !== 'completionScreen') return;
-    pages.forEach(function(id) { var el = $id(id); if (el) el.classList.remove('active'); });
+    pages.forEach(function (id) { var el = $id(id); if (el) el.classList.remove('active'); });
     var target = $id(pageId);
     if (target) target.classList.add('active');
     updateProgressBar(pageId);
@@ -332,7 +338,7 @@
   function updateProgressBar(pageId) {
     var stepMap = { 'pageIntro': 1, 'pageActivities': 2, 'pageEmotion': 3, 'pageDemo': 4, 'completionScreen': 5 };
     var current = stepMap[pageId] || 1;
-    document.querySelectorAll('.progress-step').forEach(function(step) {
+    document.querySelectorAll('.progress-step').forEach(function (step) {
       step.classList.remove('active', 'completed');
       var sd = step.dataset.step;
       if (!sd) return;
@@ -351,9 +357,9 @@
   // ── Time Block Tabs ──
   function switchBlock(block) {
     activeBlock = block;
-    document.querySelectorAll('.time-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.time-tab').forEach(function (t) { t.classList.remove('active'); });
     $id('tab' + capitalize(block)).classList.add('active');
-    document.querySelectorAll('.time-block').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.time-block').forEach(function (b) { b.classList.remove('active'); });
     $id('block' + capitalize(block)).classList.add('active');
     renderCurrentCard(block);
     updateNavBar(block);
@@ -363,14 +369,14 @@
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
   function updateTabCounts() {
-    TIME_BLOCKS.forEach(function(block) {
+    TIME_BLOCKS.forEach(function (block) {
       $id('count' + capitalize(block)).textContent = activities[block].length;
     });
   }
 
   // Update tab visual states (disable unvisited tabs)
   function updateTabStates() {
-    TIME_BLOCKS.forEach(function(block) {
+    TIME_BLOCKS.forEach(function (block) {
       var tab = $id('tab' + capitalize(block));
       if (!tab) return;
       if (visitedBlocks[block]) {
@@ -404,7 +410,7 @@
   function removeActivity(block, id) {
     var list = activities[block];
     if (list.length <= 0) return;
-    var idx = list.findIndex(function(a) { return a.id === id; });
+    var idx = list.findIndex(function (a) { return a.id === id; });
     if (idx === -1) return;
     list.splice(idx, 1);
     delete formData[block][id];
@@ -549,55 +555,55 @@
 
     card.innerHTML =
       '<div class="activity-card__header">' +
-        '<div class="activity-card__number">' +
-          '<div class="activity-card__number-badge">' + num + '</div>' +
-          '<span style="font-size:0.8rem; font-weight:600;">활동 ' + num + '</span>' +
-        '</div>' +
-        '<button class="activity-card__delete" type="button" title="삭제">✕</button>' +
+      '<div class="activity-card__number">' +
+      '<div class="activity-card__number-badge">' + num + '</div>' +
+      '<span style="font-size:0.8rem; font-weight:600;">활동 ' + num + '</span>' +
+      '</div>' +
+      '<button class="activity-card__delete" type="button" title="삭제">✕</button>' +
       '</div>' +
       '<div class="activity-card__grid">' +
-        '<div class="form-group full-width">' +
-          '<label class="form-label">📝 일화 (기억에 남는 활동은?)</label>' +
-          '<textarea class="form-textarea" id="' + prefix + 'activity_' + id + '" placeholder="' + (PLACEHOLDERS.activity[block] || '') + '" rows="2">' + escapeHtml(fd.activity || '') + '</textarea>' +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">⏰ 무슨 시간?</label>' +
-          buildSelect(prefix + 'time_' + id, TIME_OPTIONS, fd.time || null) +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">👥 누구와?</label>' +
-          buildSelect(prefix + 'companion_' + id, COMPANION_OPTIONS, fd.companion || null) +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">📍 어디서?</label>' +
-          buildSelect(prefix + 'location_' + id, LOCATION_OPTIONS, fd.location || null) +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">💬 이유</label>' +
-          '<textarea class="form-textarea" id="' + prefix + 'reason_' + id + '" placeholder="' + (PLACEHOLDERS.reason[block] || '') + '" rows="2" style="min-height:50px;">' + escapeHtml(fd.reason || '') + '</textarea>' +
-        '</div>' +
+      '<div class="form-group full-width">' +
+      '<label class="form-label">📝 일화 (기억에 남는 활동은?)</label>' +
+      '<textarea class="form-textarea" id="' + prefix + 'activity_' + id + '" placeholder="' + (PLACEHOLDERS.activity[block] || '') + '" rows="2">' + escapeHtml(fd.activity || '') + '</textarea>' +
+      '</div>' +
+      '<div class="form-group">' +
+      '<label class="form-label">⏰ 무슨 시간?</label>' +
+      buildSelect(prefix + 'time_' + id, TIME_OPTIONS, fd.time || null) +
+      '</div>' +
+      '<div class="form-group">' +
+      '<label class="form-label">👥 누구와?</label>' +
+      buildSelect(prefix + 'companion_' + id, COMPANION_OPTIONS, fd.companion || null) +
+      '</div>' +
+      '<div class="form-group">' +
+      '<label class="form-label">📍 어디서?</label>' +
+      buildSelect(prefix + 'location_' + id, LOCATION_OPTIONS, fd.location || null) +
+      '</div>' +
+      '<div class="form-group">' +
+      '<label class="form-label">💬 이유</label>' +
+      '<textarea class="form-textarea" id="' + prefix + 'reason_' + id + '" placeholder="' + (PLACEHOLDERS.reason[block] || '') + '" rows="2" style="min-height:50px;">' + escapeHtml(fd.reason || '') + '</textarea>' +
+      '</div>' +
       '</div>';
 
     container.appendChild(card);
 
     // Bind handlers
     bindSelectHandlers(card, block, id);
-    card.querySelector('.activity-card__delete').addEventListener('click', function() { removeActivity(block, id); });
+    card.querySelector('.activity-card__delete').addEventListener('click', function () { removeActivity(block, id); });
 
     // Auto-clear error
-    card.addEventListener('change', function(e) {
+    card.addEventListener('change', function (e) {
       if (e.target.closest('.form-group')) {
-        e.target.closest('.form-group').querySelectorAll('.field-error').forEach(function(el) { el.classList.remove('field-error'); });
+        e.target.closest('.form-group').querySelectorAll('.field-error').forEach(function (el) { el.classList.remove('field-error'); });
       }
     });
-    card.addEventListener('input', function(e) { if (e.target.classList.contains('field-error')) e.target.classList.remove('field-error'); });
+    card.addEventListener('input', function (e) { if (e.target.classList.contains('field-error')) e.target.classList.remove('field-error'); });
 
     restoreCardData(block, id);
   }
 
   function bindSelectHandlers(card, block, id) {
-    card.querySelectorAll('select.form-select').forEach(function(sel) {
-      sel.addEventListener('change', function() {
+    card.querySelectorAll('select.form-select').forEach(function (sel) {
+      sel.addEventListener('change', function () {
         sel.classList.remove('field-error');
         var etcEl = document.getElementById(sel.id + '_etc');
         if (etcEl) etcEl.style.display = sel.value === '기타' ? 'block' : 'none';
@@ -611,7 +617,7 @@
 
   function buildSelect(name, options, selectedValue) {
     var isTimeField = name.indexOf('_time_') !== -1;
-    var opts = options.map(function(opt) {
+    var opts = options.map(function (opt) {
       var selected = opt === selectedValue ? 'selected' : '';
       return '<option value="' + escapeHtml(opt) + '" ' + selected + '>' + escapeHtml(opt) + '</option>';
     }).join('');
@@ -622,7 +628,7 @@
 
     if (isTimeField) {
       var showSubject = (selectedValue === '교과시간');
-      var subOpts = SUBJECT_OPTIONS.map(function(s) {
+      var subOpts = SUBJECT_OPTIONS.map(function (s) {
         return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
       }).join('');
       html += '<select class="form-select" id="' + name + '_subject" style="display:' + (showSubject ? 'block' : 'none') + '; margin-top:0.3rem; font-size:0.82rem;">' +
@@ -677,8 +683,8 @@
   // ── Emotion Page ──
   function buildEmotionList() {
     emotionActivities = [];
-    TIME_BLOCKS.forEach(function(block) {
-      activities[block].forEach(function(a, idx) {
+    TIME_BLOCKS.forEach(function (block) {
+      activities[block].forEach(function (a, idx) {
         var fd = formData[block][a.id] || {};
         emotionActivities.push({
           block: block,
@@ -694,7 +700,7 @@
 
   // Get emotion activities for a specific block
   function getBlockEmotionActivities(block) {
-    return emotionActivities.filter(function(ea) { return ea.block === block; });
+    return emotionActivities.filter(function (ea) { return ea.block === block; });
   }
 
   // Get current block's emotion activities and current index within that block
@@ -733,8 +739,8 @@
     if (headerEl) {
       headerEl.innerHTML =
         '<span class="emotion-block-indicator emotion-block-indicator--' + block + '">' +
-          TIME_BLOCK_ICONS[block] + ' ' + TIME_BLOCK_LABELS[block] + ' 활동 정서 기록' +
-          '<span class="emotion-block-step">(' + (emotionBlockIdx + 1) + '/' + TIME_BLOCKS.length + ' 시간대)</span>' +
+        TIME_BLOCK_ICONS[block] + ' ' + TIME_BLOCK_LABELS[block] + ' 활동 정서 기록' +
+        '<span class="emotion-block-step">(' + (emotionBlockIdx + 1) + '/' + TIME_BLOCKS.length + ' 시간대)</span>' +
         '</span>';
     }
   }
@@ -775,46 +781,46 @@
     // Activity header
     var headerHtml =
       '<div class="emotion-activity-header">' +
-        '<span class="emotion-activity-header__badge emotion-activity-header__badge--' + ea.block + '">' +
-          TIME_BLOCK_ICONS[ea.block] + ' ' + TIME_BLOCK_LABELS[ea.block] +
-        '</span>' +
-        '<span class="emotion-activity-header__text">' + escapeHtml(ea.activity) + '</span>' +
+      '<span class="emotion-activity-header__badge emotion-activity-header__badge--' + ea.block + '">' +
+      TIME_BLOCK_ICONS[ea.block] + ' ' + TIME_BLOCK_LABELS[ea.block] +
+      '</span>' +
+      '<span class="emotion-activity-header__text">' + escapeHtml(ea.activity) + '</span>' +
       '</div>';
 
     // Summary info
     var fd = formData[ea.block][ea.id] || {};
     var summaryHtml =
       '<div class="summary-card">' +
-        (fd.time ? '<div class="summary-card__row"><span class="summary-card__label">⏰ 시간</span><span>' + escapeHtml(getDisplayTime(fd)) + '</span></div>' : '') +
-        (fd.companion ? '<div class="summary-card__row"><span class="summary-card__label">👥 함께</span><span>' + escapeHtml(getDisplayVal(fd, 'companion')) + '</span></div>' : '') +
-        (fd.location ? '<div class="summary-card__row"><span class="summary-card__label">📍 장소</span><span>' + escapeHtml(getDisplayVal(fd, 'location')) + '</span></div>' : '') +
-        (fd.reason ? '<div class="summary-card__row"><span class="summary-card__label">💬 이유</span><span>' + escapeHtml(fd.reason) + '</span></div>' : '') +
+      (fd.time ? '<div class="summary-card__row"><span class="summary-card__label">⏰ 시간</span><span>' + escapeHtml(getDisplayTime(fd)) + '</span></div>' : '') +
+      (fd.companion ? '<div class="summary-card__row"><span class="summary-card__label">👥 함께</span><span>' + escapeHtml(getDisplayVal(fd, 'companion')) + '</span></div>' : '') +
+      (fd.location ? '<div class="summary-card__row"><span class="summary-card__label">📍 장소</span><span>' + escapeHtml(getDisplayVal(fd, 'location')) + '</span></div>' : '') +
+      (fd.reason ? '<div class="summary-card__row"><span class="summary-card__label">💬 이유</span><span>' + escapeHtml(fd.reason) + '</span></div>' : '') +
       '</div>';
 
     // Emotion scales
     var emotionHtml =
       '<div class="emotion-section">' +
-        '<div class="likert-hint"><span>1 = 전혀 아니다</span><span>7 = 매우 그렇다</span></div>' +
-        EMOTIONS.map(function(group) {
-          return '<div class="emotion-group emotion-group--' + group.color + '">' +
-            '<div class="emotion-group__title emotion-group__title--' + group.color + '">' + group.icon + ' ' + group.label + '</div>' +
-            group.items.map(function(emo) {
-              var checkedVal = ed[emo.key] || '';
-              return '<div class="likert-item">' +
-                '<span class="likert-item__label">' + emo.label + '</span>' +
-                '<div class="likert-scale-wrap">' +
-                  '<span class="likert-endpoint">전혀<br>아님</span>' +
-                  '<div class="likert-scale">' +
-                  [1,2,3,4,5,6,7].map(function(v) {
-                    var checked = (checkedVal == v) ? ' checked' : '';
-                    return '<label class="likert-radio"><input type="radio" name="emo_' + emo.key + '_' + key + '" value="' + v + '"' + checked + '><span>' + v + '</span></label>';
-                  }).join('') +
-                  '</div>' +
-                  '<span class="likert-endpoint">매우<br>그러함</span>' +
-                '</div></div>';
-            }).join('') +
+      '<div class="likert-hint"><span>1 = 전혀 아니다</span><span>7 = 매우 그렇다</span></div>' +
+      EMOTIONS.map(function (group) {
+        return '<div class="emotion-group emotion-group--' + group.color + '">' +
+          '<div class="emotion-group__title emotion-group__title--' + group.color + '">' + group.icon + ' ' + group.label + '</div>' +
+          group.items.map(function (emo) {
+            var checkedVal = ed[emo.key] || '';
+            return '<div class="likert-item">' +
+              '<span class="likert-item__label">' + emo.label + '</span>' +
+              '<div class="likert-scale-wrap">' +
+              '<span class="likert-endpoint">전혀<br>아님</span>' +
+              '<div class="likert-scale">' +
+              [1, 2, 3, 4, 5, 6, 7].map(function (v) {
+                var checked = (checkedVal == v) ? ' checked' : '';
+                return '<label class="likert-radio"><input type="radio" name="emo_' + emo.key + '_' + key + '" value="' + v + '"' + checked + '><span>' + v + '</span></label>';
+              }).join('') +
+              '</div>' +
+              '<span class="likert-endpoint">매우<br>그러함</span>' +
+              '</div></div>';
+          }).join('') +
           '</div>';
-        }).join('') +
+      }).join('') +
       '</div>';
 
     container.innerHTML = headerHtml + summaryHtml + emotionHtml;
@@ -826,8 +832,8 @@
     var key = ea.block + '_' + ea.id;
     var data = {};
 
-    EMOTIONS.forEach(function(g) {
-      g.items.forEach(function(emo) {
+    EMOTIONS.forEach(function (g) {
+      g.items.forEach(function (emo) {
         var checked = document.querySelector('input[name="emo_' + emo.key + '_' + key + '"]:checked');
         data[emo.key] = checked ? checked.value : '';
       });
@@ -877,8 +883,8 @@
       var ed = emotionData[key] || {};
 
       var missing = [];
-      EMOTIONS.forEach(function(g) {
-        g.items.forEach(function(emo) {
+      EMOTIONS.forEach(function (g) {
+        g.items.forEach(function (emo) {
           if (!ed[emo.key]) missing.push(emo.label);
         });
       });
@@ -909,8 +915,8 @@
   // ── Data Collection ──
   function collectAllActivities() {
     var result = [];
-    TIME_BLOCKS.forEach(function(block) {
-      activities[block].forEach(function(a, idx) {
+    TIME_BLOCKS.forEach(function (block) {
+      activities[block].forEach(function (a, idx) {
         var fd = formData[block][a.id] || {};
         var ed = emotionData[block + '_' + a.id] || {};
 
@@ -924,8 +930,8 @@
           reason: fd.reason || ''
         };
 
-        EMOTIONS.forEach(function(g) {
-          g.items.forEach(function(emo) {
+        EMOTIONS.forEach(function (g) {
+          g.items.forEach(function (emo) {
             data[emo.key] = ed[emo.key] ? parseInt(ed[emo.key]) : '';
           });
         });
@@ -1003,20 +1009,20 @@
     if (completionMsg) completionMsg.style.display = 'none';
 
     var controller = new AbortController();
-    var timeoutId = setTimeout(function() { controller.abort(); }, SUBMIT_TIMEOUT_MS);
+    var timeoutId = setTimeout(function () { controller.abort(); }, SUBMIT_TIMEOUT_MS);
 
     fetch(APP_CONFIG.GAS_URL, {
       method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload), signal: controller.signal
-    }).then(function() {
+    }).then(function () {
       clearTimeout(timeoutId); isSubmitting = false; isSubmitted = true;
-      try { sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
+      try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { }
       statusEl.className = 'submit-status submit-status--success';
       statusEl.innerHTML = '<span style="font-size:1.2rem;">✅</span><span class="submit-status__text">응답이 성공적으로 제출되었습니다. 감사합니다!</span>';
       // Show completion message AFTER successful submission
       if (completionMsg) completionMsg.style.display = 'block';
-    }).catch(function(err) {
+    }).catch(function (err) {
       clearTimeout(timeoutId); isSubmitting = false;
       var isTimeout = err.name === 'AbortError';
       statusEl.className = 'submit-status submit-status--error';
@@ -1024,7 +1030,7 @@
         (isTimeout ? '제출 시간이 초과되었습니다.' : '제출 중 오류가 발생했습니다.') + '</span>';
       var retryBtn = document.createElement('button');
       retryBtn.className = 'btn-retry'; retryBtn.textContent = '🔄 다시 시도';
-      retryBtn.addEventListener('click', function() { if (lastPayload) submitData(lastPayload); });
+      retryBtn.addEventListener('click', function () { if (lastPayload) submitData(lastPayload); });
       statusEl.appendChild(document.createElement('br')); statusEl.appendChild(retryBtn);
     });
   }
@@ -1060,7 +1066,7 @@
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 3500);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 3500);
   }
 
 })();
