@@ -3,7 +3,7 @@
 > **Day Reconstruction Method (DRM)** 기반 시간대별 일상 경험 설문 시스템
 
 [![GitHub Pages](https://img.shields.io/badge/Survey-Live-brightgreen?style=for-the-badge&logo=github)](https://edu-data.github.io/DRM6/)
-[![Version](https://img.shields.io/badge/version-6.2-blue?style=for-the-badge)](https://github.com/edu-data/DRM6)
+[![Version](https://img.shields.io/badge/version-6.3-blue?style=for-the-badge)](https://github.com/edu-data/DRM6)
 
 ## 📋 개요
 
@@ -35,7 +35,7 @@ DRM6은 **일상재구성법(Day Reconstruction Method)**을 활용하여 고등
 | 오후 | 오후 1시 ~ 오후 6시 | ☀️ |
 | 저녁 | 저녁 6시 ~ 11시 | 🌙 |
 
-### 설문 흐름 (v6.2 블록별 순차 네비게이션)
+### 설문 흐름 (v6.3 블록별 순차 네비게이션 + 2단계 제출)
 
 ```
 1️⃣  안내문 + 핸드폰 번호 입력
@@ -61,6 +61,16 @@ DRM6은 **일상재구성법(Day Reconstruction Method)**을 활용하여 고등
      ↓
 4️⃣  인적사항 (성별, 소재지, 학교유형, 학년, 진로결정)
      ※ 반복측정 시 동일 핸드폰 번호 → 자동 스킵
+     ↓
+     ┌─────────────────────────────────────────┐
+     │ 🔄 오버레이: "응답을 제출하고 있습니다..."  │
+     │          ↓ (서버 저장 완료)               │
+     │ ✅ "응답이 성공적으로 제출되었습니다!"     │
+     │          ↓ (2초 후)                      │
+     └─────────────────────────────────────────┘
+     ↓
+5️⃣  🎉 완료 화면: "설문이 완료되었습니다!"
+     "브라우저를 닫으셔도 됩니다. 감사합니다! 🙏"
 ```
 
 ### 블록별 순차 네비게이션 (v6.2)
@@ -133,6 +143,13 @@ DRM6/
 | RespondentID | PhoneNumber | Date | DayOfWeek | TimeBlock | ActivityNum | Activity | TimeCategory | Companion | Location | Reason | EmoJoyful | EmoHappy | EmoComfortable | EmoAnnoyed | EmoNegative | EmoLethargic | EmoMeaningful | EmoValuable | EmoSatisfying |
 
 ## 📝 변경 이력
+
+### v6.3 (2026-03-31)
+
+- **제출 2단계 플로우**: [설문 완료] 클릭 → 오버레이(스피너+제출 중) → 저장 완료 시 "✅ 응답이 성공적으로 제출되었습니다!" 2초 표시 → 🎉 완료 화면 전환
+- **제출 오버레이**: 전체 화면 반투명 오버레이 (backdrop-filter blur), 제출 에러 시 [🔄 다시 시도] + [← 돌아가기] 버튼 제공
+- **완료 화면 분리**: 데이터 저장 성공 후에만 완료 화면 표시 (기존: 즉시 전환 → 개선: 저장 확인 후 전환)
+- **대기 안내 문구 제거**: 오버레이가 피드백을 제공하므로 기존 "5초만 기다려주세요" 문구 삭제
 
 ### v6.2 (2026-03-31)
 
