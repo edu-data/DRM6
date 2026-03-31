@@ -23,8 +23,9 @@
     evening: '저녁 6시 ~ 11시'
   };
 
+  // 전문교과는 교과시간 하위 과목으로 이동
   var TIME_OPTIONS = [
-    '교과시간', '전문교과', '쉬는시간', '점심시간', '학교방과후시간', '동아리시간', '상담시간',
+    '교과시간', '쉬는시간', '점심시간', '학교방과후시간', '동아리시간', '상담시간',
     '학원시간', '아침시간(등교 전)',
     '저녁시간', '귀가후시간', '취침전', '기타'
   ];
@@ -32,7 +33,7 @@
   var SUBJECT_OPTIONS = [
     '국어', '수학', '영어', '사회/역사', '과학',
     '음악', '미술', '체육', '정보', '한국사',
-    '제2외국어', '진로선택과목', '기타과목'
+    '제2외국어', '진로선택과목', '전문교과', '기타과목'
   ];
 
   var COMPANION_OPTIONS = [
@@ -92,6 +93,7 @@
   var emotionActivities = []; // flattened list: [{block, id, ...}]
   var emotionIdx = 0;
   var emotionData = {}; // keyed by block_id
+  var emotionBlockIdx = 0; // which time block's emotions are being rated
 
   var isSubmitting = false;
   var isSubmitted = false;
@@ -101,13 +103,16 @@
   var DEMO_STORAGE_PREFIX = 'drm6_demo_';
   var savedDemographics = null;
 
+  // Track which blocks have been visited (for tab restriction)
+  var visitedBlocks = { morning: true, afternoon: false, evening: false };
+
   function saveToSession() {
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
         activities: activities, idCounters: idCounters,
         formData: formData, emotionData: emotionData,
         currentIdx: currentIdx, activeBlock: activeBlock,
-        surveyStarted: surveyStarted,
+        surveyStarted: surveyStarted, visitedBlocks: visitedBlocks,
         phoneNumber: document.getElementById('phoneNumber') ? document.getElementById('phoneNumber').value : ''
       }));
     } catch (e) { /* quota exceeded */ }
@@ -122,9 +127,10 @@
       activities = s.activities; idCounters = s.idCounters;
       formData = s.formData; emotionData = s.emotionData || {};
       currentIdx = s.currentIdx; activeBlock = s.activeBlock || 'morning';
+      visitedBlocks = s.visitedBlocks || { morning: true, afternoon: false, evening: false };
       surveyStarted = true;
       if (s.phoneNumber) document.getElementById('phoneNumber').value = s.phoneNumber;
-      updateTabCounts(); switchBlock(activeBlock);
+      updateTabCounts(); updateTabStates(); switchBlock(activeBlock);
       navigateTo('pageActivities');
       showToast('💾 이전 작성 내용을 복원했습니다.');
     } catch (e) { /* corrupted or unavailable */ }
@@ -169,23 +175,27 @@
       // Check for saved demographics (repeat survey)
       savedDemographics = loadDemographics(phone);
       if (savedDemographics) {
-        $id('toDemoBtn').textContent = '✅ 설문 완료';
         showToast('ℹ️ 이전에 입력한 인적사항이 자동 적용됩니다.');
       }
       // Add initial activity for each block
       TIME_BLOCKS.forEach(function(block) {
         if (activities[block].length === 0) addActivity(block);
       });
+      visitedBlocks = { morning: true, afternoon: false, evening: false };
+      updateTabStates();
+      switchBlock('morning');
       navigateTo('pageActivities');
     });
 
     $id('phoneNumber').addEventListener('focus', function() { this.classList.remove('field-error'); });
 
-    // Time tabs
+    // Time tabs (restricted: only visited blocks)
     document.querySelectorAll('.time-tab').forEach(function(tab) {
       tab.addEventListener('click', function() {
+        var targetBlock = tab.dataset.block;
+        if (!visitedBlocks[targetBlock]) return; // can't jump to unvisited
         saveCurrentCard(activeBlock);
-        switchBlock(tab.dataset.block);
+        switchBlock(targetBlock);
       });
     });
 
@@ -204,47 +214,102 @@
     $id('eveningNextBtn').addEventListener('click', function() { saveCurrentCard('evening'); moveCard('evening', 1); });
     $id('addEveningBtn').addEventListener('click', function() { addActivity('evening'); });
 
-    // Page nav
-    $id('backToIntroBtn').addEventListener('click', function() {
-      saveCurrentCard(activeBlock);
+    // ── Block-level sequential navigation (활동 기록) ──
+    // Morning: ← 이전(인트로) | 다음: 오후 활동 기록 →
+    $id('morningBackBtn').addEventListener('click', function() {
+      saveCurrentCard('morning');
       navigateTo('pageIntro');
     });
-
-    $id('toEmotionBtn').addEventListener('click', function() {
-      saveCurrentCard(activeBlock);
-      // Validate all blocks have at least MIN_ACTIVITIES
-      for (var i = 0; i < TIME_BLOCKS.length; i++) {
-        var block = TIME_BLOCKS[i];
-        if (activities[block].length < MIN_ACTIVITIES) {
-          switchBlock(block);
-          showToast('⚠️ ' + TIME_BLOCK_LABELS[block] + ' 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
-          return;
-        }
-        if (!validateBlockActivities(block)) return;
+    $id('morningNextBlockBtn').addEventListener('click', function() {
+      saveCurrentCard('morning');
+      if (activities['morning'].length < MIN_ACTIVITIES) {
+        showToast('⚠️ 오전·점심 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
+        return;
       }
-      buildEmotionList();
-      navigateTo('pageEmotion');
+      if (!validateBlockActivities('morning')) return;
+      visitedBlocks.afternoon = true;
+      updateTabStates();
+      switchBlock('afternoon');
     });
 
-    // Emotion nav
-    $id('emotionPrevBtn').addEventListener('click', function() { saveEmotionCard(); moveEmotionCard(-1); });
-    $id('emotionNextBtn').addEventListener('click', function() { saveEmotionCard(); moveEmotionCard(1); });
-    $id('backToActivitiesBtn').addEventListener('click', function() {
-      saveEmotionCard();
-      navigateTo('pageActivities');
+    // Afternoon: ← 오전·점심으로 | 다음: 저녁 활동 기록 →
+    $id('afternoonBackBtn').addEventListener('click', function() {
+      saveCurrentCard('afternoon');
+      switchBlock('morning');
     });
-    $id('toDemoBtn').addEventListener('click', function() {
+    $id('afternoonNextBlockBtn').addEventListener('click', function() {
+      saveCurrentCard('afternoon');
+      if (activities['afternoon'].length < MIN_ACTIVITIES) {
+        showToast('⚠️ 오후 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
+        return;
+      }
+      if (!validateBlockActivities('afternoon')) return;
+      visitedBlocks.evening = true;
+      updateTabStates();
+      switchBlock('evening');
+    });
+
+    // Evening: ← 오후로 | 다음: 정서 기록 →
+    $id('eveningBackBtn').addEventListener('click', function() {
+      saveCurrentCard('evening');
+      switchBlock('afternoon');
+    });
+    $id('eveningNextBlockBtn').addEventListener('click', function() {
+      saveCurrentCard('evening');
+      if (activities['evening'].length < MIN_ACTIVITIES) {
+        showToast('⚠️ 저녁 시간대에 최소 ' + MIN_ACTIVITIES + '개 활동을 입력해 주세요.');
+        return;
+      }
+      if (!validateBlockActivities('evening')) return;
+      buildEmotionList();
+      emotionBlockIdx = 0;
+      navigateTo('pageEmotion');
+      renderEmotionBlockView();
+    });
+
+    // ── Emotion nav (within block) ──
+    $id('emotionPrevBtn').addEventListener('click', function() { saveEmotionCard(); moveEmotionInBlock(-1); });
+    $id('emotionNextBtn').addEventListener('click', function() { saveEmotionCard(); moveEmotionInBlock(1); });
+
+    // ── Emotion block-level navigation ──
+    $id('emotionBackBlockBtn').addEventListener('click', function() {
       saveEmotionCard();
-      if (!validateAllEmotions()) return;
-      if (savedDemographics) {
-        handleComplete(); // Skip demographics — reuse saved data
+      if (emotionBlockIdx <= 0) {
+        // Go back to activities (evening block)
+        switchBlock('evening');
+        navigateTo('pageActivities');
       } else {
-        navigateTo('pageDemo');
+        emotionBlockIdx--;
+        renderEmotionBlockView();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    $id('emotionNextBlockBtn').addEventListener('click', function() {
+      saveEmotionCard();
+      // Validate current block's emotions
+      if (!validateBlockEmotions(TIME_BLOCKS[emotionBlockIdx])) return;
+
+      if (emotionBlockIdx >= TIME_BLOCKS.length - 1) {
+        // Last block → go to demographics or submit
+        if (savedDemographics) {
+          handleComplete();
+        } else {
+          navigateTo('pageDemo');
+        }
+      } else {
+        emotionBlockIdx++;
+        renderEmotionBlockView();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     });
 
     // Demo nav
-    $id('backToEmotionBtn').addEventListener('click', function() { navigateTo('pageEmotion'); });
+    $id('backToEmotionBtn').addEventListener('click', function() {
+      emotionBlockIdx = TIME_BLOCKS.length - 1;
+      renderEmotionBlockView();
+      navigateTo('pageEmotion');
+    });
     $id('completeBtn').addEventListener('click', function() { handleComplete(); });
 
     // Restore saved progress
@@ -300,6 +365,21 @@
   function updateTabCounts() {
     TIME_BLOCKS.forEach(function(block) {
       $id('count' + capitalize(block)).textContent = activities[block].length;
+    });
+  }
+
+  // Update tab visual states (disable unvisited tabs)
+  function updateTabStates() {
+    TIME_BLOCKS.forEach(function(block) {
+      var tab = $id('tab' + capitalize(block));
+      if (!tab) return;
+      if (visitedBlocks[block]) {
+        tab.classList.remove('tab-disabled');
+        tab.removeAttribute('aria-disabled');
+      } else {
+        tab.classList.add('tab-disabled');
+        tab.setAttribute('aria-disabled', 'true');
+      }
     });
   }
 
@@ -374,7 +454,7 @@
     data.time = timeSel ? timeSel.value : '';
     var timeEtc = document.getElementById(prefix + 'time_' + id + '_etc');
     data.time_etc = (timeEtc && timeEtc.value) ? timeEtc.value : '';
-    if (data.time === '교과시간' || data.time === '전문교과') {
+    if (data.time === '교과시간') {
       var subSel = document.getElementById(prefix + 'time_' + id + '_subject');
       data.time_subject = subSel ? subSel.value : '';
     }
@@ -413,7 +493,7 @@
         var etc = document.getElementById(prefix + 'time_' + id + '_etc');
         if (etc) { etc.style.display = 'block'; etc.value = data.time_etc || ''; }
       }
-      if (data.time === '교과시간' || data.time === '전문교과') {
+      if (data.time === '교과시간') {
         var sub = document.getElementById(prefix + 'time_' + id + '_subject');
         if (sub) { sub.style.display = 'block'; if (data.time_subject) sub.value = data.time_subject; }
       }
@@ -523,7 +603,7 @@
         if (etcEl) etcEl.style.display = sel.value === '기타' ? 'block' : 'none';
         if (sel.id.indexOf('_time_') !== -1) {
           var subEl = document.getElementById(sel.id + '_subject');
-          if (subEl) subEl.style.display = (sel.value === '교과시간' || sel.value === '전문교과') ? 'block' : 'none';
+          if (subEl) subEl.style.display = (sel.value === '교과시간') ? 'block' : 'none';
         }
       });
     });
@@ -541,7 +621,7 @@
       '<input type="text" class="form-input" id="' + name + '_etc" placeholder="직접 입력해 주세요" style="display:' + (selectedValue === '기타' ? 'block' : 'none') + '; margin-top:0.3rem; font-size:0.82rem;" />';
 
     if (isTimeField) {
-      var showSubject = (selectedValue === '교과시간' || selectedValue === '전문교과');
+      var showSubject = (selectedValue === '교과시간');
       var subOpts = SUBJECT_OPTIONS.map(function(s) {
         return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
       }).join('');
@@ -572,7 +652,7 @@
         showToast('⚠️ ' + TIME_BLOCK_LABELS[block] + ' 활동 ' + (i + 1) + '의 시간을 선택해 주세요.');
         return false;
       }
-      if ((d.time === '교과시간' || d.time === '전문교과') && !d.time_subject) {
+      if (d.time === '교과시간' && !d.time_subject) {
         switchBlock(block);
         currentIdx[block] = i; renderCurrentCard(block); updateNavBar(block);
         showToast('⚠️ ' + TIME_BLOCK_LABELS[block] + ' 활동 ' + (i + 1) + '의 교과시간 과목을 선택해 주세요.');
@@ -610,8 +690,77 @@
       });
     });
     emotionIdx = 0;
+  }
+
+  // Get emotion activities for a specific block
+  function getBlockEmotionActivities(block) {
+    return emotionActivities.filter(function(ea) { return ea.block === block; });
+  }
+
+  // Get current block's emotion activities and current index within that block
+  function getCurrentBlockEmotionInfo() {
+    var block = TIME_BLOCKS[emotionBlockIdx];
+    var blockActivities = getBlockEmotionActivities(block);
+    // Find the global index of current emotionIdx within block activities
+    var idxInBlock = 0;
+    for (var i = 0; i < blockActivities.length; i++) {
+      var globalIdx = emotionActivities.indexOf(blockActivities[i]);
+      if (globalIdx === emotionIdx) { idxInBlock = i; break; }
+    }
+    return { block: block, activities: blockActivities, idxInBlock: idxInBlock };
+  }
+
+  // Render the emotion view for the current block
+  function renderEmotionBlockView() {
+    var block = TIME_BLOCKS[emotionBlockIdx];
+    var blockActs = getBlockEmotionActivities(block);
+
+    // Set emotionIdx to first activity in this block
+    if (blockActs.length > 0) {
+      emotionIdx = emotionActivities.indexOf(blockActs[0]);
+    }
+
+    // Update block header
+    updateEmotionBlockHeader();
     renderEmotionCard();
     updateEmotionNavBar();
+    updateEmotionBlockButtons();
+  }
+
+  function updateEmotionBlockHeader() {
+    var block = TIME_BLOCKS[emotionBlockIdx];
+    var headerEl = $id('emotionBlockHeader');
+    if (headerEl) {
+      headerEl.innerHTML =
+        '<span class="emotion-block-indicator emotion-block-indicator--' + block + '">' +
+          TIME_BLOCK_ICONS[block] + ' ' + TIME_BLOCK_LABELS[block] + ' 활동 정서 기록' +
+          '<span class="emotion-block-step">(' + (emotionBlockIdx + 1) + '/' + TIME_BLOCKS.length + ' 시간대)</span>' +
+        '</span>';
+    }
+  }
+
+  function updateEmotionBlockButtons() {
+    var backBtn = $id('emotionBackBlockBtn');
+    var nextBtn = $id('emotionNextBlockBtn');
+
+    // Back button label
+    if (emotionBlockIdx <= 0) {
+      backBtn.textContent = '← 활동 기록으로';
+    } else {
+      backBtn.textContent = '← ' + TIME_BLOCK_LABELS[TIME_BLOCKS[emotionBlockIdx - 1]] + ' 정서로';
+    }
+
+    // Next button label
+    if (emotionBlockIdx >= TIME_BLOCKS.length - 1) {
+      if (savedDemographics) {
+        nextBtn.textContent = '✅ 설문 완료';
+      } else {
+        nextBtn.textContent = '다음: 인적사항 →';
+      }
+    } else {
+      var nextBlock = TIME_BLOCKS[emotionBlockIdx + 1];
+      nextBtn.textContent = '다음: ' + TIME_BLOCK_LABELS[nextBlock] + ' 활동 정서 →';
+    }
   }
 
   function renderEmotionCard() {
@@ -688,26 +837,42 @@
     saveToSession();
   }
 
-  function moveEmotionCard(dir) {
-    var newIdx = emotionIdx + dir;
-    if (newIdx < 0 || newIdx >= emotionActivities.length) return;
-    emotionIdx = newIdx;
+  // Move within current block's emotions only
+  function moveEmotionInBlock(dir) {
+    var block = TIME_BLOCKS[emotionBlockIdx];
+    var blockActs = getBlockEmotionActivities(block);
+    // Find current position within block
+    var curBlockPos = -1;
+    for (var i = 0; i < blockActs.length; i++) {
+      if (emotionActivities.indexOf(blockActs[i]) === emotionIdx) { curBlockPos = i; break; }
+    }
+    var newBlockPos = curBlockPos + dir;
+    if (newBlockPos < 0 || newBlockPos >= blockActs.length) return;
+    emotionIdx = emotionActivities.indexOf(blockActs[newBlockPos]);
     renderEmotionCard();
     updateEmotionNavBar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function updateEmotionNavBar() {
-    $id('emotionPrevBtn').disabled = emotionIdx <= 0;
-    $id('emotionNextBtn').disabled = emotionIdx >= emotionActivities.length - 1;
-    $id('emotionProgressText').textContent = emotionActivities.length > 0
-      ? (emotionIdx + 1) + ' / ' + emotionActivities.length
+    var block = TIME_BLOCKS[emotionBlockIdx];
+    var blockActs = getBlockEmotionActivities(block);
+    var curBlockPos = -1;
+    for (var i = 0; i < blockActs.length; i++) {
+      if (emotionActivities.indexOf(blockActs[i]) === emotionIdx) { curBlockPos = i; break; }
+    }
+    $id('emotionPrevBtn').disabled = curBlockPos <= 0;
+    $id('emotionNextBtn').disabled = curBlockPos >= blockActs.length - 1;
+    $id('emotionProgressText').textContent = blockActs.length > 0
+      ? (curBlockPos + 1) + ' / ' + blockActs.length
       : '0 / 0';
   }
 
-  function validateAllEmotions() {
-    for (var i = 0; i < emotionActivities.length; i++) {
-      var ea = emotionActivities[i];
+  // Validate emotions for a specific time block
+  function validateBlockEmotions(block) {
+    var blockActs = getBlockEmotionActivities(block);
+    for (var i = 0; i < blockActs.length; i++) {
+      var ea = blockActs[i];
       var key = ea.block + '_' + ea.id;
       var ed = emotionData[key] || {};
 
@@ -719,7 +884,7 @@
       });
 
       if (missing.length > 0) {
-        emotionIdx = i;
+        emotionIdx = emotionActivities.indexOf(ea);
         renderEmotionCard();
         updateEmotionNavBar();
         showToast('⚠️ ' + TIME_BLOCK_LABELS[ea.block] + ' 활동 ' + ea.num + '의 정서를 모두 응답해 주세요. (미응답: ' + missing.join(', ') + ')');
@@ -731,7 +896,7 @@
 
   // ── Helper: display values ──
   function getDisplayTime(fd) {
-    if ((fd.time === '교과시간' || fd.time === '전문교과') && fd.time_subject) return fd.time + '(' + fd.time_subject + ')';
+    if (fd.time === '교과시간' && fd.time_subject) return fd.time + '(' + fd.time_subject + ')';
     if (fd.time === '기타' && fd.time_etc) return '기타: ' + fd.time_etc;
     return fd.time || '';
   }
@@ -831,8 +996,11 @@
   function submitData(payload) {
     isSubmitting = true;
     var statusEl = $id('submitStatus');
+    var completionMsg = $id('completionMessage');
+    statusEl.style.display = 'block';
     statusEl.className = 'submit-status';
     statusEl.innerHTML = '<div class="submit-status__spinner"></div><span class="submit-status__text">응답을 제출하고 있습니다...</span>';
+    if (completionMsg) completionMsg.style.display = 'none';
 
     var controller = new AbortController();
     var timeoutId = setTimeout(function() { controller.abort(); }, SUBMIT_TIMEOUT_MS);
@@ -846,6 +1014,8 @@
       try { sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
       statusEl.className = 'submit-status submit-status--success';
       statusEl.innerHTML = '<span style="font-size:1.2rem;">✅</span><span class="submit-status__text">응답이 성공적으로 제출되었습니다. 감사합니다!</span>';
+      // Show completion message AFTER successful submission
+      if (completionMsg) completionMsg.style.display = 'block';
     }).catch(function(err) {
       clearTimeout(timeoutId); isSubmitting = false;
       var isTimeout = err.name === 'AbortError';

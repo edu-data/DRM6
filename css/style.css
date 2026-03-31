@@ -1155,6 +1155,65 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* --- Tab Disabled State --- */
+.time-tab.tab-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.time-tab.tab-disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* --- Emotion Block Header --- */
+.emotion-block-header-container {
+  margin-bottom: 1rem;
+}
+
+.emotion-block-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  width: 100%;
+  justify-content: center;
+}
+
+.emotion-block-indicator--morning {
+  background: var(--color-morning-bg);
+  color: var(--color-morning);
+  border: 1px solid var(--color-morning-border);
+}
+
+.emotion-block-indicator--afternoon {
+  background: var(--color-afternoon-bg);
+  color: var(--color-afternoon);
+  border: 1px solid var(--color-afternoon-border);
+}
+
+.emotion-block-indicator--evening {
+  background: var(--color-evening-bg);
+  color: var(--color-evening);
+  border: 1px solid var(--color-evening-border);
+}
+
+.emotion-block-step {
+  font-size: 0.72rem;
+  font-weight: 400;
+  margin-left: 0.4rem;
+  opacity: 0.7;
+}
+
+/* --- Completion Message --- */
+.completion-message {
+  animation: fadeSlideIn 0.45s ease;
+}
+
 /* --- Summary Card (emotion page) --- */
 .summary-card {
   background: var(--bg-card);

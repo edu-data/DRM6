@@ -188,6 +188,10 @@
         <div class="activity-actions">
           <button class="add-activity-btn" id="addMorningBtn" type="button">＋ 활동 추가</button>
         </div>
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" id="morningBackBtn" type="button">← 이전</button>
+          <button class="btn btn-primary" id="morningNextBlockBtn" type="button">다음: 오후 활동 기록 →</button>
+        </div>
       </div>
 
       <!-- Afternoon block -->
@@ -205,6 +209,10 @@
         <div id="afternoonList" role="region" aria-label="오후 활동 카드"></div>
         <div class="activity-actions">
           <button class="add-activity-btn" id="addAfternoonBtn" type="button">＋ 활동 추가</button>
+        </div>
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" id="afternoonBackBtn" type="button">← 오전·점심으로</button>
+          <button class="btn btn-primary" id="afternoonNextBlockBtn" type="button">다음: 저녁 활동 기록 →</button>
         </div>
       </div>
 
@@ -224,12 +232,12 @@
         <div class="activity-actions">
           <button class="add-activity-btn" id="addEveningBtn" type="button">＋ 활동 추가</button>
         </div>
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" id="eveningBackBtn" type="button">← 오후로</button>
+          <button class="btn btn-primary" id="eveningNextBlockBtn" type="button">다음: 정서 기록 →</button>
+        </div>
       </div>
 
-      <div class="nav-buttons">
-        <button class="btn btn-secondary" id="backToIntroBtn" type="button">← 이전</button>
-        <button class="btn btn-primary" id="toEmotionBtn" type="button">다음: 정서 기록 →</button>
-      </div>
     </section>
 
     <!-- ============================================================
@@ -241,6 +249,9 @@
       <p class="part-description">
         앞서 기록한 활동들에 대해 그때 느꼈던 <strong>정서(감정)</strong>를 1~7점으로 평가합니다.
       </p>
+
+      <!-- Emotion block header (dynamically updated) -->
+      <div id="emotionBlockHeader" class="emotion-block-header-container"></div>
 
       <!-- Emotion activity navigation -->
       <div class="activity-nav-bar" id="emotionNavBar">
@@ -254,8 +265,8 @@
       </div>
 
       <div class="nav-buttons">
-        <button class="btn btn-secondary" id="backToActivitiesBtn" type="button">← 이전</button>
-        <button class="btn btn-primary" id="toDemoBtn" type="button">다음: 인적사항 →</button>
+        <button class="btn btn-secondary" id="emotionBackBlockBtn" type="button">← 활동 기록으로</button>
+        <button class="btn btn-primary" id="emotionNextBlockBtn" type="button">다음: 인적사항 →</button>
       </div>
     </section>
 
@@ -365,6 +376,11 @@
         <div id="submitStatus" class="submit-status">
           <div class="submit-status__spinner"></div>
           <span class="submit-status__text">응답을 제출하고 있습니다...</span>
+        </div>
+        <div id="completionMessage" class="completion-message" style="display:none;">
+          <p style="margin-top:1.5rem; font-size:0.88rem; color:var(--text-secondary);">
+            브라우저를 닫으셔도 됩니다. 감사합니다! 🙏
+          </p>
         </div>
       </div>
     </section>
