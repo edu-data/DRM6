@@ -978,7 +978,6 @@
     }
 
     setSubmitButtonState(true);
-    navigateTo('completionScreen');
 
     var allActivities = collectAllActivities();
     var phone = $id('phoneNumber').value.trim();
@@ -999,14 +998,22 @@
     submitData(payload);
   }
 
+  function showSubmitOverlay() {
+    var overlay = $id('submitOverlay');
+    if (overlay) overlay.classList.add('active');
+  }
+
+  function hideSubmitOverlay() {
+    var overlay = $id('submitOverlay');
+    if (overlay) overlay.classList.remove('active');
+  }
+
   function submitData(payload) {
     isSubmitting = true;
     var statusEl = $id('submitStatus');
-    var completionMsg = $id('completionMessage');
-    statusEl.style.display = 'block';
     statusEl.className = 'submit-status';
     statusEl.innerHTML = '<div class="submit-status__spinner"></div><span class="submit-status__text">응답을 제출하고 있습니다...</span>';
-    if (completionMsg) completionMsg.style.display = 'none';
+    showSubmitOverlay();
 
     var controller = new AbortController();
     var timeoutId = setTimeout(function () { controller.abort(); }, SUBMIT_TIMEOUT_MS);
@@ -1018,10 +1025,9 @@
     }).then(function () {
       clearTimeout(timeoutId); isSubmitting = false; isSubmitted = true;
       try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { }
-      statusEl.className = 'submit-status submit-status--success';
-      statusEl.innerHTML = '<span style="font-size:1.2rem;">✅</span><span class="submit-status__text">응답이 성공적으로 제출되었습니다. 감사합니다!</span>';
-      // Show completion message AFTER successful submission
-      if (completionMsg) completionMsg.style.display = 'block';
+      hideSubmitOverlay();
+      // 제출 성공 → 완료 화면으로 전환
+      navigateTo('completionScreen');
     }).catch(function (err) {
       clearTimeout(timeoutId); isSubmitting = false;
       var isTimeout = err.name === 'AbortError';
@@ -1031,7 +1037,13 @@
       var retryBtn = document.createElement('button');
       retryBtn.className = 'btn-retry'; retryBtn.textContent = '🔄 다시 시도';
       retryBtn.addEventListener('click', function () { if (lastPayload) submitData(lastPayload); });
-      statusEl.appendChild(document.createElement('br')); statusEl.appendChild(retryBtn);
+      var closeBtn = document.createElement('button');
+      closeBtn.className = 'btn-retry'; closeBtn.textContent = '← 돌아가기';
+      closeBtn.style.marginLeft = '0.5rem';
+      closeBtn.addEventListener('click', function () { hideSubmitOverlay(); setSubmitButtonState(false); });
+      statusEl.appendChild(document.createElement('br'));
+      statusEl.appendChild(retryBtn);
+      statusEl.appendChild(closeBtn);
     });
   }
 
