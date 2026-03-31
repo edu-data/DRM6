@@ -1025,9 +1025,14 @@
     }).then(function () {
       clearTimeout(timeoutId); isSubmitting = false; isSubmitted = true;
       try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { }
-      hideSubmitOverlay();
-      // 제출 성공 → 완료 화면으로 전환
-      navigateTo('completionScreen');
+      // 1단계: 오버레이에서 성공 메시지 표시
+      statusEl.className = 'submit-status submit-status--success';
+      statusEl.innerHTML = '<span style="font-size:1.2rem;">✅</span><span class="submit-status__text">응답이 성공적으로 제출되었습니다. 감사합니다!</span>';
+      // 2단계: 2초 후 오버레이 닫고 완료 화면으로 전환
+      setTimeout(function () {
+        hideSubmitOverlay();
+        navigateTo('completionScreen');
+      }, 2000);
     }).catch(function (err) {
       clearTimeout(timeoutId); isSubmitting = false;
       var isTimeout = err.name === 'AbortError';
