@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DRM6 설문 — 고등학생의 시간대별 하루 일상 경험 조사</title>
+  <meta name="description" content="일상재구성법(DRM)을 활용하여 고등학생의 시간대별 하루 활동과 정서를 파악하는 연구 설문입니다." />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/config.js"></script>
+  <style>
+    /* Demo overlay for step indicators */
+    #demoOverlay {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 99999;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      pointer-events: none;
+      transition: opacity 0.3s;
+      max-width: 280px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    #demoOverlay.hidden { opacity: 0; }
+    .demo-highlight {
+      outline: 3px solid #ff6b35 !important;
+      outline-offset: 2px;
+      box-shadow: 0 0 15px rgba(255, 107, 53, 0.4) !important;
+      transition: outline 0.3s, box-shadow 0.3s;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-container" role="main">
+
+    <!-- ===== HEADER ===== -->
+    <header class="app-header">
+      <span class="app-header__badge">Research Survey 2026</span>
+      <h1 class="app-header__title">『나의 하루일과 돌아보기』</h1>
+      <p class="app-header__subtitle">
+        일상재구성법(DRM) 기반 시간대별 일상 경험 조사
+      </p>
+    </header>
+
+    <!-- ===== PROGRESS BAR ===== -->
+    <nav class="progress-bar" id="progressBar" aria-label="설문 진행 단계">
+      <div class="progress-step active" data-step="1">
+        <div class="progress-step__circle">1
+          <span class="progress-step__label">안내문</span>
+        </div>
+      </div>
+      <div class="progress-step" data-step="1-2">
+        <div class="progress-step__line"></div>
+      </div>
+      <div class="progress-step" data-step="2">
+        <div class="progress-step__circle">2
+          <span class="progress-step__label">활동 기록</span>
+        </div>
+      </div>
+      <div class="progress-step" data-step="2-3">
+        <div class="progress-step__line"></div>
+      </div>
+      <div class="progress-step" data-step="3">
+        <div class="progress-step__circle">3
+          <span class="progress-step__label">정서 기록</span>
+        </div>
+      </div>
+      <div class="progress-step" data-step="3-4">
+        <div class="progress-step__line"></div>
+      </div>
+      <div class="progress-step" data-step="4">
+        <div class="progress-step__circle">4
+          <span class="progress-step__label">인적사항</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- PAGE 1: 안내문 -->
+    <section class="part-section active" id="pageIntro" aria-label="설문 안내">
+      <div class="intro-hero">
+        <div class="intro-hero__icon">🕐</div>
+        <h2 class="intro-hero__title">고등학생의 시간대별 하루 일상 경험 조사</h2>
+        <p class="intro-hero__subtitle">오늘 하루를 시간 순서대로 떠올려 기록하는 설문입니다</p>
+      </div>
+      <div class="glass-card intro-card">
+        <h3 class="intro-card__heading">📋 연구 안내</h3>
+        <p class="intro-card__text" style="font-size:0.82rem; margin-bottom: 0.5rem;">
+          안녕하세요! 본 조사는 <strong>고등학생 여러분의 하루 일과</strong>를 시간대별로 떠올려,
+          각 활동에서 느끼는 <strong>정서(긍정, 부정, 의미/가치)</strong>를 알아보기 위한 연구입니다.
+        </p>
+        <p class="intro-card__text" style="font-size:0.82rem;">
+          여러분의 솔직한 응답은 고등학생의 일상과 행복을 이해하는 데 큰 도움이 됩니다.
+        </p>
+      </div>
+      <div class="glass-card intro-card">
+        <h3 class="intro-card__heading">🔢 설문 진행 순서</h3>
+        <div class="intro-step">
+          <div class="intro-step__number">1</div>
+          <div class="intro-step__content">
+            <div class="intro-step__title">시간 순서대로 활동 기록</div>
+            <p class="intro-step__desc">오전·점심 / 오후 / 저녁 시간대별로 기억에 남는 활동을 시간 순서대로 1~5개씩 적어주세요.</p>
+          </div>
+        </div>
+        <div class="intro-step">
+          <div class="intro-step__number">2</div>
+          <div class="intro-step__content">
+            <div class="intro-step__title">느낌(정서) 기록</div>
+            <p class="intro-step__desc">각 활동별로 느꼈던 정서를 평가합니다.</p>
+          </div>
+        </div>
+        <div class="intro-step">
+          <div class="intro-step__number">3</div>
+          <div class="intro-step__content">
+            <div class="intro-step__title">인적사항 확인</div>
+            <p class="intro-step__desc">성별, 학교 소재지, 학교 유형, 학년, 진로 결정 여부를 응답합니다.</p>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card intro-card">
+        <p class="intro-card__text" style="font-size:0.82rem;">
+          🔒 응답 내용은 <strong>익명으로 처리</strong>되며, 연구 목적 이외에는 사용되지 않습니다.
+        </p>
+        <hr style="border:none; border-top:1px solid rgba(255,255,255,0.06); margin:0.7rem 0;">
+        <p class="intro-card__text" style="font-size:0.82rem;">
+          💰 설문에 참여해 주신 분께 <strong>사례비를 지급</strong>합니다. 아래 핸드폰 번호를 입력해 주세요.
+        </p>
+        <div class="form-group" style="max-width: 340px; margin: 0.7rem auto 0;">
+          <label class="form-label" for="phoneNumber">📱 핸드폰 번호</label>
+          <input type="tel" class="form-input" id="phoneNumber" placeholder="예: 010-1234-5678"
+            pattern="[0-9]{2,3}-[0-9]{3,4}-[0-9]{4}" required autocomplete="tel"
+            style="text-align: center; font-size: 1.05rem; letter-spacing: 1px;" />
+          <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem; text-align:center;">* 사례비 지급을
+            위해 반드시 입력해 주세요</p>
+        </div>
+      </div>
+      <div class="glass-card intro-card">
+        <p class="intro-card__text" style="font-size:0.82rem; text-align:center;">
+          ⏱️ 예상 소요 시간: <strong>약 10~15분</strong>
+        </p>
+      </div>
+      <div class="nav-buttons" style="justify-content:center;">
+        <button class="btn btn-primary btn-start-survey" id="startSurveyBtn" type="button">
+          📝 설문 시작하기
+        </button>
+      </div>
+    </section>
+
+    <!-- PAGE 2: 활동 기록 -->
+    <section class="part-section" id="pageActivities" aria-label="시간대별 활동 기록">
+      <div class="section-badge section-badge--morning">📋 활동 기록</div>
+      <h2 class="part-title">오늘 하루를 시간 순서대로 떠올려 주세요</h2>
+      <p class="part-description">
+        각 시간대별로 <strong>기억에 남는 활동을 시간 순서대로 1~5개씩</strong> 적어주세요.<br>
+        활동 내용(시작~끝 시간 포함), 함께한 사람, 장소 등을 기록합니다.
+      </p>
+      <div class="time-tabs" id="timeTabs" role="tablist">
+        <button class="time-tab time-tab--morning active" id="tabMorning" type="button" role="tab" data-block="morning">
+          <span class="time-tab__icon">🌅</span>
+          오전·점심<br><span style="font-size:0.62rem; opacity:0.8;">8시~1시</span>
+          <span class="time-tab__count" id="countMorning">0</span>
+        </button>
+        <button class="time-tab time-tab--afternoon" id="tabAfternoon" type="button" role="tab" data-block="afternoon">
+          <span class="time-tab__icon">☀️</span>
+          오후<br><span style="font-size:0.62rem; opacity:0.8;">1시~6시</span>
+          <span class="time-tab__count" id="countAfternoon">0</span>
+        </button>
+        <button class="time-tab time-tab--evening" id="tabEvening" type="button" role="tab" data-block="evening">
+          <span class="time-tab__icon">🌙</span>
+          저녁<br><span style="font-size:0.62rem; opacity:0.8;">6시~11시</span>
+          <span class="time-tab__count" id="countEvening">0</span>
+        </button>
+      </div>
+      <!-- Morning block -->
+      <div class="time-block active" id="blockMorning" role="tabpanel">
+        <div class="time-block__header">
+          <span class="time-block__icon">🌅</span>
+          <span class="time-block__title">오전·점심</span>
+          <span class="time-block__time">오전 8시 ~ 오후 1시</span>
+        </div>
+        <div class="activity-nav-bar" id="morningNavBar">
+          <button class="activity-nav-btn" id="morningPrevBtn" type="button">← 이전</button>
+          <div class="activity-nav-progress"><span id="morningProgressText">0 / 0</span></div>
+          <button class="activity-nav-btn" id="morningNextBtn" type="button">다음 →</button>
+        </div>
+        <div id="morningList" role="region" aria-label="오전 활동 카드"></div>
+        <div class="activity-actions">
+          <button class="add-activity-btn" id="addMorningBtn" type="button">＋ 활동 추가</button>
+        </div>
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" id="morningBackBtn" type="button">← 이전</button>
+          <button class="btn btn-primary" id="morningNextBlockBtn" type="button">다음: 오후 활동 기록 →</button>
+        </div>
+      </div>
+      <!-- Afternoon block -->
+      <div class="time-block" id="blockAfternoon" role="tabpanel">
+        <div class="time-block__header">
+          <span class="time-block__icon">☀️</span>
+          <span class="time-block__title">오후</span>
+          <span class="time-block__time">오후 1시 ~ 오후 6시</span>
+        </div>
+        <div class="activity-nav-bar" id="afternoonNavBar">
+          <button class="activity-nav-btn" id="afternoonPrevBtn" type="button">← 이전</button>
+          <div class="activity-nav-progress"><span id="afternoonProgressText">0 / 0</span></div>
+          <button class="activity-nav-btn" id="afternoonNextBtn" type="button">다음 →</button>
+        </div>
+        <div id="afternoonList" role="region" aria-label="오후 활동 카드"></div>
+        <div class="activity-actions">
+          <button class="add-activity-btn" id="addAfternoonBtn" type="button">＋ 활동 추가</button>
+        </div>
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" id="afternoonBackBtn" type="button">← 오전·점심으로</button>
+          <button class="btn btn-primary" id="afternoonNextBlockBtn" type="button">다음: 저녁 활동 기록 →</button>
+        </div>
+      </div>
+      <!-- Evening block -->
+      <div class="time-block" id="blockEvening" role="tabpanel">
+        <div class="time-block__header">
+          <span class="time-block__icon">🌙</span>
+          <span class="time-block__title">저녁</span>
+          <span class="time-block__time">저녁 6시 ~ 11시</span>
+        </div>
+        <div class="activity-nav-bar" id="eveningNavBar">
+          <button class="activity-nav-btn" id="eveningPrevBtn" type="button">← 이전</button>
+          <div class="activity-nav-progress"><span id="eveningProgressText">0 / 0</span></div>
+          <button class="activity-nav-btn" id="eveningNextBtn" type="button">다음 →</button>
+        </div>
+        <div id="eveningList" role="region" aria-label="저녁 활동 카드"></div>
+        <div class="activity-actions">
+          <button class="add-activity-btn" id="addEveningBtn" type="button">＋ 활동 추가</button>
+        </div>
+        <div class="nav-buttons">
+          <button class="btn btn-secondary" id="eveningBackBtn" type="button">← 오후로</button>
+          <button class="btn btn-primary" id="eveningNextBlockBtn" type="button">다음: 정서 기록 →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: 정서 기록 -->
+    <section class="part-section" id="pageEmotion" aria-label="정서 기록">
+      <div class="section-badge section-badge--emotion">💫 정서 기록</div>
+      <h2 class="part-title">각 활동에서 느낀 감정을 평가해 주세요</h2>
+      <p class="part-description">
+        앞서 기록한 활동들에 대해 그때 느꼈던 <strong>정서(감정)</strong>를 1~7점으로 평가합니다.
+      </p>
+      <div id="emotionBlockHeader" class="emotion-block-header-container"></div>
+      <div class="activity-nav-bar" id="emotionNavBar">
+        <button class="activity-nav-btn" id="emotionPrevBtn" type="button">← 이전 활동</button>
+        <div class="activity-nav-progress"><span id="emotionProgressText">1 / 1</span></div>
+        <button class="activity-nav-btn" id="emotionNextBtn" type="button">다음 활동 →</button>
+      </div>
+      <div id="emotionContent" role="region" aria-label="정서 평가 카드"></div>
+      <div class="nav-buttons">
+        <button class="btn btn-secondary" id="emotionBackBlockBtn" type="button">← 활동 기록으로</button>
+        <button class="btn btn-primary" id="emotionNextBlockBtn" type="button">다음: 인적사항 →</button>
+      </div>
+    </section>
+
+    <!-- PAGE 4: 인적사항 -->
+    <section class="part-section" id="pageDemo" aria-label="인적사항">
+      <div class="section-badge section-badge--info">📊 인적사항</div>
+      <h2 class="part-title">인적사항 확인</h2>
+      <p class="part-description">마지막으로 간단한 인적사항을 입력해 주세요.</p>
+      <div class="glass-card demo-card">
+        <div class="form-group">
+          <label class="form-label">성별</label>
+          <div class="radio-group" id="genderGroup" role="radiogroup" aria-label="성별 선택">
+            <label class="radio-option"><input type="radio" name="gender" value="남"><span>남</span></label>
+            <label class="radio-option"><input type="radio" name="gender" value="여"><span>여</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card demo-card">
+        <div class="form-group">
+          <label class="form-label" for="schoolLocation">학교 소재지</label>
+          <select class="form-select" id="schoolLocation" required>
+            <option value="">선택해 주세요</option>
+            <option value="서울">서울</option><option value="부산">부산</option><option value="대구">대구</option>
+            <option value="인천">인천</option><option value="광주">광주</option><option value="대전">대전</option>
+            <option value="울산">울산</option><option value="세종">세종</option><option value="경기">경기</option>
+            <option value="강원">강원</option><option value="충북">충북</option><option value="충남">충남</option>
+            <option value="전북">전북</option><option value="전남">전남</option><option value="경북">경북</option>
+            <option value="경남">경남</option><option value="제주">제주</option>
+          </select>
+        </div>
+      </div>
+      <div class="glass-card demo-card">
+        <div class="form-group">
+          <label class="form-label" for="schoolType">학교 유형</label>
+          <select class="form-select" id="schoolType" required>
+            <option value="">선택해 주세요</option>
+            <option value="일반계고">일반계고</option>
+            <option value="특성화고">특성화고(경영고, 공고, 과학기술고, 농고 등)</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+      <div class="glass-card demo-card">
+        <div class="form-group">
+          <label class="form-label">학년</label>
+          <div class="radio-group" id="gradeGroup" role="radiogroup" aria-label="학년 선택">
+            <label class="radio-option"><input type="radio" name="grade" value="1학년"><span>1학년</span></label>
+            <label class="radio-option"><input type="radio" name="grade" value="2학년"><span>2학년</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card demo-card">
+        <div class="form-group">
+          <label class="form-label">진로 결정 여부</label>
+          <div class="radio-group" id="careerGroup" role="radiogroup" aria-label="진로 결정 여부 선택">
+            <label class="radio-option"><input type="radio" name="careerDecision" value="결정함"><span>결정함</span></label>
+            <label class="radio-option"><input type="radio" name="careerDecision" value="고민 중"><span>고민 중</span></label>
+            <label class="radio-option"><input type="radio" name="careerDecision" value="결정하지 않음"><span>결정하지 않음</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn btn-secondary" id="backToEmotionBtn" type="button">← 이전</button>
+        <button class="btn btn-primary" id="completeBtn" type="button">✅ 설문 완료</button>
+      </div>
+    </section>
+
+    <!-- COMPLETION SCREEN -->
+    <section class="part-section" id="completionScreen" aria-label="설문 완료">
+      <div class="completion-screen">
+        <div class="completion-screen__icon">🎉</div>
+        <h2 class="completion-screen__title">설문이 완료되었습니다!</h2>
+        <p class="completion-screen__desc">소중한 응답에 감사드립니다.</p>
+        <div class="completion-message">
+          <p style="margin-top:1.5rem; font-size:0.88rem; color:var(--text-secondary);">
+            브라우저를 닫으셔도 됩니다. 감사합니다! 🙏
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 제출 중 오버레이 -->
+  <div class="submit-overlay" id="submitOverlay">
+    <div class="submit-overlay__content">
+      <div id="submitStatus" class="submit-status">
+        <div class="submit-status__spinner"></div>
+        <span class="submit-status__text">응답을 제출하고 있습니다...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="alert" aria-live="assertive"></div>
+
+  <!-- Demo step overlay -->
+  <div id="demoOverlay" class="hidden"></div>
+
+  <script src="js/app.js"></script>
+
+  <!-- ====== AUTO-DEMO SCRIPT ====== -->
+  <script>
+  (function() {
+    'use strict';
+
+    // Clear any previous session data
+    try { sessionStorage.removeItem('drm6_survey_state'); } catch(e) {}
+
+    var DELAY = 2200; // ms between steps
+    var step = 0;
+    var overlay = document.getElementById('demoOverlay');
+
+    function showStep(msg) {
+      overlay.textContent = '📹 ' + msg;
+      overlay.classList.remove('hidden');
+    }
+
+    function highlight(el) {
+      if (!el) return;
+      el.classList.add('demo-highlight');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function() { el.classList.remove('demo-highlight'); }, DELAY - 200);
+    }
+
+    function setVal(id, val) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      highlight(el);
+    }
+
+    function setSelectVal(id, val) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.value = val;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      highlight(el);
+    }
+
+    function clickBtn(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      highlight(el);
+      setTimeout(function() { el.click(); }, 400);
+    }
+
+    function selectRadio(name, val) {
+      var radio = document.querySelector('input[name="' + name + '"][value="' + val + '"]');
+      if (!radio) return;
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+      var label = radio.closest('.radio-option');
+      if (label) highlight(label);
+    }
+
+    function fillCurrentActivity(block, data) {
+      var list = document.getElementById(block + 'List');
+      if (!list) return;
+
+      // Activity textarea
+      var actTA = list.querySelector('textarea[id^="' + block + '_activity_"]');
+      if (actTA) { actTA.value = data.activity; actTA.dispatchEvent(new Event('input', {bubbles:true})); highlight(actTA); }
+
+      setTimeout(function() {
+        // Time select
+        var timeSel = list.querySelector('select[id^="' + block + '_time_"]');
+        if (timeSel) { timeSel.value = data.time; timeSel.dispatchEvent(new Event('change', {bubbles:true})); highlight(timeSel); }
+
+        setTimeout(function() {
+          // Subject select (if 교과시간)
+          if (data.subject) {
+            var subSel = list.querySelector('select[id$="_subject"]');
+            if (subSel) { subSel.style.display = 'block'; subSel.value = data.subject; subSel.dispatchEvent(new Event('change', {bubbles:true})); highlight(subSel); }
+          }
+
+          setTimeout(function() {
+            // Companion
+            var compSel = list.querySelector('select[id^="' + block + '_companion_"]');
+            if (compSel) { compSel.value = data.companion; compSel.dispatchEvent(new Event('change', {bubbles:true})); highlight(compSel); }
+
+            setTimeout(function() {
+              // Location
+              var locSel = list.querySelector('select[id^="' + block + '_location_"]');
+              if (locSel) { locSel.value = data.location; locSel.dispatchEvent(new Event('change', {bubbles:true})); highlight(locSel); }
+
+              setTimeout(function() {
+                // Reason
+                var reasonTA = list.querySelector('textarea[id^="' + block + '_reason_"]');
+                if (reasonTA) { reasonTA.value = data.reason; reasonTA.dispatchEvent(new Event('input', {bubbles:true})); highlight(reasonTA); }
+              }, 500);
+            }, 500);
+          }, 500);
+        }, 500);
+      }, 500);
+    }
+
+    function fillAllEmotions(values) {
+      var container = document.getElementById('emotionContent');
+      if (!container) return;
+      var radios = container.querySelectorAll('input[type="radio"]');
+      var groups = {};
+      radios.forEach(function(r) { groups[r.name] = true; });
+      var groupNames = Object.keys(groups);
+
+      groupNames.forEach(function(name, idx) {
+        var val;
+        if (idx < 3) val = values[0]; // positive
+        else if (idx < 6) val = values[1]; // negative
+        else val = values[2]; // meaning
+        var radio = document.querySelector('input[name="' + name + '"][value="' + val + '"]');
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', {bubbles:true}));
+          var label = radio.closest('.likert-radio');
+          if (label) label.style.transition = 'transform 0.2s';
+        }
+      });
+      // Scroll to show emotions
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // === DEMO SEQUENCE ===
+    var steps = [
+      // Step 0: Show intro
+      function() {
+        showStep('① 안내문을 읽고 핸드폰 번호를 입력합니다');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 1: Scroll down intro
+      function() {
+        window.scrollTo({ top: 300, behavior: 'smooth' });
+      },
+      // Step 2: Enter phone
+      function() {
+        showStep('② 핸드폰 번호 입력');
+        setVal('phoneNumber', '010-1234-5678');
+      },
+      // Step 3: Click start
+      function() {
+        showStep('③ 설문 시작하기 클릭!');
+        clickBtn('startSurveyBtn');
+      },
+      // Step 4: Show morning activity page
+      function() {
+        showStep('④ 오전·점심 시간대 활동 기록');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 5: Fill morning activity 1
+      function() {
+        showStep('⑤ 활동 1: 수학시간 기록 중...');
+        fillCurrentActivity('morning', {
+          activity: '(9시~10시) 수학시간 문제풀이, 모둠활동 발표',
+          time: '교과시간',
+          subject: '수학',
+          companion: '친구와 함께',
+          location: '교실',
+          reason: '친구와 같이 풀어서 재미있었다'
+        });
+      },
+      // Step 6: Scroll to show filled card
+      function() {
+        showStep('⑤ 활동 1 작성 완료!');
+        var list = document.getElementById('morningList');
+        if (list) list.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      },
+      // Step 7: Click next to afternoon
+      function() {
+        showStep('⑥ 다음: 오후 활동 기록으로 이동');
+        clickBtn('morningNextBlockBtn');
+      },
+      // Step 8: Show afternoon
+      function() {
+        showStep('⑦ 오후 시간대 활동 기록');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 9: Fill afternoon activity
+      function() {
+        showStep('⑧ 활동 1: 진로탐색 활동 기록 중...');
+        fillCurrentActivity('afternoon', {
+          activity: '(2시~3시) 진로탐색 활동, 생기부 기록',
+          time: '교과시간',
+          subject: '진로선택과목',
+          companion: '교사와 함께',
+          location: '교실',
+          reason: '새로운 활동을 해봐서 뿌듯했다'
+        });
+      },
+      // Step 10: Show filled
+      function() {
+        showStep('⑧ 오후 활동 1 작성 완료!');
+        var list = document.getElementById('afternoonList');
+        if (list) list.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      },
+      // Step 11: Click next to evening
+      function() {
+        showStep('⑨ 다음: 저녁 활동 기록으로 이동');
+        clickBtn('afternoonNextBlockBtn');
+      },
+      // Step 12: Show evening
+      function() {
+        showStep('⑩ 저녁 시간대 활동 기록');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 13: Fill evening activity
+      function() {
+        showStep('⑪ 활동 1: 저녁 식사 기록 중...');
+        fillCurrentActivity('evening', {
+          activity: '(7시~8시) 저녁 식사 후 가족과 대화',
+          time: '저녁시간',
+          subject: null,
+          companion: '가족과 함께',
+          location: '집',
+          reason: '가족과 함께 식사하면서 편안했다'
+        });
+      },
+      // Step 14: Show filled
+      function() {
+        showStep('⑪ 저녁 활동 1 작성 완료!');
+        var list = document.getElementById('eveningList');
+        if (list) list.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      },
+      // Step 15: Click next to emotion
+      function() {
+        showStep('⑫ 다음: 정서 기록으로 이동');
+        clickBtn('eveningNextBlockBtn');
+      },
+      // Step 16: Show emotion page
+      function() {
+        showStep('⑬ 오전 활동의 정서(감정) 평가');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 17: Fill morning emotions
+      function() {
+        showStep('⑬ 정서 점수 입력 중... (1~7점)');
+        fillAllEmotions([6, 2, 5]); // positive=6, negative=2, meaning=5
+      },
+      // Step 18: Move to afternoon emotions
+      function() {
+        showStep('⑭ 다음: 오후 활동 정서 기록');
+        clickBtn('emotionNextBlockBtn');
+      },
+      // Step 19: Fill afternoon emotions
+      function() {
+        showStep('⑭ 오후 활동 정서 입력 중...');
+        fillAllEmotions([5, 3, 6]);
+      },
+      // Step 20: Move to evening emotions
+      function() {
+        showStep('⑮ 다음: 저녁 활동 정서 기록');
+        clickBtn('emotionNextBlockBtn');
+      },
+      // Step 21: Fill evening emotions
+      function() {
+        showStep('⑮ 저녁 활동 정서 입력 중...');
+        fillAllEmotions([7, 1, 6]);
+      },
+      // Step 22: Move to demographics
+      function() {
+        showStep('⑯ 다음: 인적사항 입력');
+        clickBtn('emotionNextBlockBtn');
+      },
+      // Step 23: Show demographics
+      function() {
+        showStep('⑰ 인적사항 입력');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 24: Fill demographics
+      function() {
+        showStep('⑰ 인적사항 입력 중...');
+        selectRadio('gender', '남');
+        setTimeout(function() {
+          setSelectVal('schoolLocation', '서울');
+          setTimeout(function() {
+            setSelectVal('schoolType', '일반계고');
+            setTimeout(function() {
+              selectRadio('grade', '2학년');
+              setTimeout(function() {
+                selectRadio('careerDecision', '고민 중');
+              }, 400);
+            }, 400);
+          }, 400);
+        }, 400);
+      },
+      // Step 25: Scroll to show complete button
+      function() {
+        showStep('⑱ 설문 완료 버튼을 누르면 제출됩니다!');
+        var btn = document.getElementById('completeBtn');
+        if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlight(btn);
+      },
+      // Step 26: Done
+      function() {
+        showStep('✅ 시범 영상 끝! 이렇게 작성하면 됩니다 😊');
+      }
+    ];
+
+    // Run steps sequentially
+    function runNextStep() {
+      if (step >= steps.length) return;
+      steps[step]();
+      step++;
+      if (step < steps.length) {
+        setTimeout(runNextStep, DELAY);
+      }
+    }
+
+    // Start demo after page loads
+    window.addEventListener('load', function() {
+      setTimeout(runNextStep, 1500);
+    });
+  })();
+  </script>
+
+</body>
+</html>
