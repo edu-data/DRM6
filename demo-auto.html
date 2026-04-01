@@ -367,6 +367,20 @@
   (function() {
     'use strict';
 
+    // ★ Override fetch: 실제 전송 차단, 즉시 성공 응답 반환
+    var originalFetch = window.fetch;
+    window.fetch = function(url, opts) {
+      if (typeof url === 'string' && url.indexOf('script.google.com') !== -1) {
+        // GAS URL → 실제 전송하지 않고 가짜 성공 응답 반환
+        return new Promise(function(resolve) {
+          setTimeout(function() {
+            resolve(new Response('ok', { status: 200 }));
+          }, 1200); // 1.2초 대기 후 성공 (제출 중 오버레이 표시용)
+        });
+      }
+      return originalFetch.apply(this, arguments);
+    };
+
     // Clear any previous session data
     try { sessionStorage.removeItem('drm6_survey_state'); } catch(e) {}
 
@@ -649,12 +663,26 @@
       },
       // Step 25: Scroll to show complete button
       function() {
-        showStep('⑱ 설문 완료 버튼을 누르면 제출됩니다!');
+        showStep('⑱ 설문 완료 버튼 클릭!');
         var btn = document.getElementById('completeBtn');
         if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
         highlight(btn);
       },
-      // Step 26: Done
+      // Step 26: Click complete button (fetch is overridden - no real submission)
+      function() {
+        showStep('⑲ 제출 중... (데이터 전송 중)');
+        clickBtn('completeBtn');
+      },
+      // Step 27: Wait for submission overlay + success message
+      function() {
+        showStep('⑲ 응답이 성공적으로 제출되었습니다!');
+      },
+      // Step 28: Show completion screen (app.js navigates here after 2s overlay)
+      function() {
+        showStep('⑳ 설문 완료! 🎉');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      // Step 29: Final message
       function() {
         showStep('✅ 시범 영상 끝! 이렇게 작성하면 됩니다 😊');
       }
