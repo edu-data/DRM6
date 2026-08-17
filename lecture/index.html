@@ -1,0 +1,2269 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>연구 항해도</title>
+<style>
+/* ============================================================
+   연구 항해도 — 해도 제도(製圖) 디자인 시스템
+   ============================================================ */
+:root{
+  --paper:#EDF1F3; --paper-2:#E4EBED; --paper-3:#D5E0E3; --paper-4:#C6D5D9;
+  --ink:#0B1F2A; --ink-2:#3A5763; --ink-3:#6B8792;
+  --hull:#12384E;
+  --mag:#B5177E; --mag-soft:rgba(181,23,126,.09); --mag-line:rgba(181,23,126,.34);
+  --rule:rgba(11,31,42,.15); --rule-2:rgba(11,31,42,.30);
+  --good:#166B4E; --good-bg:rgba(22,107,78,.09);
+  --warn:#9A5A08; --warn-bg:rgba(154,90,8,.10);
+  --crit:#A01B26; --crit-bg:rgba(160,27,38,.09);
+  --sans:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic','Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono','JetBrains Mono','Cascadia Mono',Consolas,'D2Coding',monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#08161D; --paper-2:#0E2530; --paper-3:#16323F; --paper-4:#1E4150;
+    --ink:#DCE7EA; --ink-2:#A9C0C8; --ink-3:#7C97A1;
+    --hull:#9FC4D4;
+    --mag:#F368B8; --mag-soft:rgba(243,104,184,.13); --mag-line:rgba(243,104,184,.42);
+    --rule:rgba(220,231,234,.17); --rule-2:rgba(220,231,234,.33);
+    --good:#5FC79E; --good-bg:rgba(95,199,158,.12);
+    --warn:#E0A44A; --warn-bg:rgba(224,164,74,.12);
+    --crit:#F0808C; --crit-bg:rgba(240,128,140,.12);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#08161D; --paper-2:#0E2530; --paper-3:#16323F; --paper-4:#1E4150;
+  --ink:#DCE7EA; --ink-2:#A9C0C8; --ink-3:#7C97A1;
+  --hull:#9FC4D4;
+  --mag:#F368B8; --mag-soft:rgba(243,104,184,.13); --mag-line:rgba(243,104,184,.42);
+  --rule:rgba(220,231,234,.17); --rule-2:rgba(220,231,234,.33);
+  --good:#5FC79E; --good-bg:rgba(95,199,158,.12);
+  --warn:#E0A44A; --warn-bg:rgba(224,164,74,.12);
+  --crit:#F0808C; --crit-bg:rgba(240,128,140,.12);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+  word-break:keep-all; line-height:1.62;
+}
+
+/* ---------- 무대 ---------- */
+#deck{position:fixed;inset:0 0 44px 0;display:flex;align-items:stretch;justify-content:center}
+.slide{
+  display:none; position:absolute; inset:0;
+  font-size:clamp(14px,1.28vw,21px);
+  padding:2.3em 3.2em 1.2em 4.6em;
+  overflow-y:auto; overflow-x:hidden;
+  flex-direction:column;
+}
+.slide.on{display:flex; animation:rise .34s cubic-bezier(.22,.7,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.slide.on{animation:none}}
+
+/* 좌측 항정선 레일 */
+.rail{position:absolute;left:2.05em;top:2.3em;bottom:1.2em;width:1px;background:var(--rule)}
+.rail::before{content:'';position:absolute;left:-3.5px;top:0;width:8px;height:8px;
+  border:1px solid var(--mag);background:var(--paper);transform:rotate(45deg)}
+.rail-no{position:absolute;left:-.15em;top:2.4em;font-family:var(--mono);font-size:.62em;
+  letter-spacing:.14em;color:var(--ink-3);writing-mode:vertical-rl}
+
+/* ---------- 타이포 ---------- */
+.eyebrow{
+  font-family:var(--mono);font-size:.66em;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--mag);display:flex;align-items:center;gap:.9em;margin-bottom:.85em;flex:0 0 auto
+}
+.eyebrow::after{content:'';flex:1;height:1px;background:var(--mag-line);max-width:8em}
+h2.t{font-size:2.05em;line-height:1.22;font-weight:800;letter-spacing:-.022em;text-wrap:balance;flex:0 0 auto}
+h3.t{font-size:1.5em;line-height:1.3;font-weight:750;letter-spacing:-.015em;text-wrap:balance}
+.lead{font-size:1.02em;color:var(--ink-2);margin-top:.7em;max-width:56ch;flex:0 0 auto}
+.body{flex:1 1 auto;margin-top:1.5em;min-height:0}
+h4{font-size:.94em;font-weight:750;letter-spacing:-.01em;margin-bottom:.35em}
+p+p{margin-top:.6em}
+strong{font-weight:750;color:var(--ink)}
+em{font-style:normal;color:var(--mag);font-weight:700}
+code,.mono{font-family:var(--mono);font-size:.88em;letter-spacing:-.01em}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- 레이아웃 ---------- */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.1em;align-content:start}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:.9em;align-content:start}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75em;align-content:start}
+.g21{display:grid;grid-template-columns:1.35fr 1fr;gap:1.3em;align-content:start}
+.g12{display:grid;grid-template-columns:1fr 1.5fr;gap:1.3em;align-content:start}
+.stack{display:flex;flex-direction:column;gap:.85em}
+.row{display:flex;gap:.8em;flex-wrap:wrap}
+
+/* ---------- 카드 (해도 제도선: 라운딩 없음) ---------- */
+.card{background:var(--paper-2);border:1px solid var(--rule);padding:1em 1.1em;position:relative}
+.card>h4{color:var(--hull)}
+.card.key{background:var(--mag-soft);border-color:var(--mag-line)}
+.card.key>h4{color:var(--mag)}
+.card .tag{position:absolute;top:-1px;right:-1px;font-family:var(--mono);font-size:.6em;
+  letter-spacing:.1em;background:var(--hull);color:var(--paper);padding:.18em .5em}
+.card p,.card li{font-size:.88em;color:var(--ink-2)}
+.card.key p,.card.key li{color:var(--ink-2)}
+
+.chip{font-family:var(--mono);font-size:.66em;letter-spacing:.08em;border:1px solid var(--rule-2);
+  padding:.16em .5em;color:var(--ink-2);white-space:nowrap}
+.chip.m{border-color:var(--mag-line);color:var(--mag)}
+
+/* ---------- 리스트 ---------- */
+ul.d,ol.d{padding-left:1.15em;display:flex;flex-direction:column;gap:.3em}
+ul.d{list-style:none;padding-left:0}
+ul.d>li{position:relative;padding-left:1.05em;font-size:.9em;color:var(--ink-2)}
+ul.d>li::before{content:'';position:absolute;left:.1em;top:.62em;width:4px;height:4px;
+  background:var(--mag);transform:rotate(45deg)}
+ol.d>li{font-size:.9em;color:var(--ink-2);padding-left:.2em}
+ol.d>li::marker{font-family:var(--mono);font-size:.85em;color:var(--mag)}
+li>strong{color:var(--ink)}
+
+/* ---------- 표 ---------- */
+.tw{overflow-x:auto;border:1px solid var(--rule);background:var(--paper-2)}
+table.tbl{border-collapse:collapse;width:100%;font-size:.82em;min-width:100%}
+table.tbl th{
+  background:var(--hull);color:var(--paper);font-weight:700;text-align:left;
+  padding:.55em .7em;font-size:.94em;white-space:nowrap;letter-spacing:-.005em
+}
+table.tbl td{padding:.5em .7em;border-top:1px solid var(--rule);color:var(--ink-2);vertical-align:top}
+table.tbl tr:nth-child(even) td{background:rgba(127,127,127,.045)}
+table.tbl td:first-child{color:var(--ink);font-weight:650;white-space:nowrap}
+table.tbl td.w{white-space:normal}
+.tbl .g{color:var(--good);font-weight:700}
+.tbl .b{color:var(--crit);font-weight:700}
+
+/* ---------- 콜아웃 ---------- */
+.call{border:1px solid var(--rule-2);border-top-width:3px;padding:.85em 1em;background:var(--paper-2);font-size:.88em;color:var(--ink-2)}
+.call>b:first-child{display:block;font-family:var(--mono);font-size:.75em;letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:.4em}
+.call.def{border-top-color:var(--hull)} .call.def>b:first-child{color:var(--hull)}
+.call.warn{border-top-color:var(--warn);background:var(--warn-bg)} .call.warn>b:first-child{color:var(--warn)}
+.call.case{border-top-color:var(--mag);background:var(--mag-soft)} .call.case>b:first-child{color:var(--mag)}
+.call.do{border-top-color:var(--good);background:var(--good-bg)} .call.do>b:first-child{color:var(--good)}
+
+/* ---------- Before / After ---------- */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule)}
+.ba>div{padding:.85em 1em;font-size:.87em;color:var(--ink-2)}
+.ba>div:first-child{background:var(--crit-bg);border-right:1px solid var(--rule)}
+.ba>div:last-child{background:var(--good-bg)}
+.ba b{display:block;font-family:var(--mono);font-size:.72em;letter-spacing:.13em;margin-bottom:.4em}
+.ba>div:first-child b{color:var(--crit)} .ba>div:last-child b{color:var(--good)}
+.q{font-size:.95em;color:var(--ink);line-height:1.5}
+
+/* ---------- 파트 표지 ---------- */
+.slide.part{justify-content:center;padding-left:4.6em;background:var(--paper-2)}
+.part .pno{font-family:var(--mono);font-size:5.2em;font-weight:600;line-height:.9;color:var(--mag);letter-spacing:-.04em}
+.part h2{font-size:2.9em;margin-top:.12em;letter-spacing:-.03em;font-weight:800}
+.part .pen{font-family:var(--mono);font-size:.8em;letter-spacing:.24em;color:var(--ink-3);text-transform:uppercase;margin-top:.9em}
+.part .pl{margin-top:1.4em;max-width:52ch;color:var(--ink-2);font-size:1em}
+.part .pq{margin-top:1.6em;display:flex;flex-wrap:wrap;gap:.5em}
+
+/* ---------- 표지 ---------- */
+.slide.cover{justify-content:center;padding-left:4.6em;overflow:hidden}
+#rose{position:absolute;inset:0;width:100%;height:100%;opacity:.5;pointer-events:none}
+.cover>.kicker,.cover>h1,.cover>.sub,.cover>.meta{position:relative;z-index:1}
+.cover .kicker{font-family:var(--mono);font-size:.78em;letter-spacing:.26em;color:var(--mag);text-transform:uppercase}
+.cover h1{font-size:3.5em;font-weight:800;letter-spacing:-.035em;line-height:1.1;margin-top:.35em}
+.cover h1 span{color:var(--mag)}
+.cover .sub{font-size:1.22em;color:var(--ink-2);margin-top:.7em;font-weight:600}
+.cover .meta{margin-top:2.2em;display:flex;gap:2.4em;flex-wrap:wrap;font-size:.82em}
+.cover .meta div b{display:block;font-family:var(--mono);font-size:.78em;letter-spacing:.14em;
+  color:var(--ink-3);text-transform:uppercase;margin-bottom:.2em;font-weight:500}
+.cover .meta div span{color:var(--ink);font-weight:650}
+
+/* ---------- 도해 ---------- */
+.fig{background:var(--paper-2);border:1px solid var(--rule);padding:1em;display:flex;
+  align-items:center;justify-content:center;overflow-x:auto}
+.fig svg{max-width:100%;height:auto;display:block}
+.figcap{font-size:.76em;color:var(--ink-3);margin-top:.5em;font-family:var(--mono);letter-spacing:.04em}
+
+/* ---------- 발표자 노트 ---------- */
+.note{display:none;margin-top:1.1em;border-top:1px dashed var(--rule-2);padding-top:.7em;
+  font-size:.8em;color:var(--ink-3);flex:0 0 auto}
+.note b{font-family:var(--mono);font-size:.8em;letter-spacing:.14em;color:var(--mag);
+  display:block;margin-bottom:.25em}
+body.notes .note{display:block}
+
+/* ---------- 하단 크롬 ---------- */
+#chrome{position:fixed;left:0;right:0;bottom:0;height:44px;background:var(--paper-2);
+  border-top:1px solid var(--rule);display:flex;align-items:center;gap:14px;padding:0 16px;z-index:20}
+#track{flex:1;height:14px;position:relative;cursor:pointer}
+#track .base{position:absolute;top:6px;left:0;right:0;height:1px;background:var(--rule-2)}
+#track .fill{position:absolute;top:5.5px;left:0;height:2px;background:var(--mag);transition:width .25s ease}
+#track .wp{position:absolute;top:2px;width:1px;height:9px;background:var(--ink-3)}
+#track .cur{position:absolute;top:1.5px;width:7px;height:7px;border:1.5px solid var(--mag);
+  background:var(--paper);transform:translateX(-3.5px) rotate(45deg);transition:left .25s ease}
+#chrome .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.09em;color:var(--ink-3);white-space:nowrap}
+#chrome .lbl b{color:var(--ink);font-weight:600}
+#chrome button{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;background:none;
+  border:1px solid var(--rule-2);color:var(--ink-2);padding:4px 8px;cursor:pointer}
+#chrome button:hover{border-color:var(--mag);color:var(--mag)}
+#chrome button:focus-visible,#track:focus-visible{outline:2px solid var(--mag);outline-offset:2px}
+
+/* ---------- 목차 오버레이 ---------- */
+#toc{position:fixed;inset:0;background:var(--paper);z-index:40;display:none;
+  overflow-y:auto;padding:34px 40px 60px}
+#toc.on{display:block}
+#toc h3{font-family:var(--mono);font-size:12px;letter-spacing:.24em;color:var(--mag);
+  text-transform:uppercase;margin-bottom:18px}
+#toc .cols{columns:3;column-gap:34px}
+@media(max-width:900px){#toc .cols{columns:1}}
+#toc .pt{break-inside:avoid;margin-bottom:16px}
+#toc .pt>div{font-size:13px;font-weight:750;color:var(--hull);border-bottom:1px solid var(--rule);
+  padding-bottom:4px;margin-bottom:5px}
+#toc a{display:block;font-size:12.5px;color:var(--ink-2);text-decoration:none;padding:2.5px 0;
+  display:flex;gap:8px}
+#toc a span{font-family:var(--mono);font-size:11px;color:var(--ink-3);min-width:24px;text-align:right}
+#toc a:hover{color:var(--mag)}
+#toc a:hover span{color:var(--mag)}
+
+/* ---------- 반응형 ---------- */
+@media(max-width:820px){
+  body{overflow:auto}
+  #deck{position:static;inset:auto}
+  .slide{position:static;padding:1.8em 1.2em 1.4em 2.6em;font-size:15px}
+  .rail{left:1em}
+  .g2,.g3,.g4,.g21,.g12{grid-template-columns:1fr}
+  .ba{grid-template-columns:1fr}
+  .ba>div:first-child{border-right:none;border-bottom:1px solid var(--rule)}
+  .cover h1{font-size:2.3em}
+  .part .pno{font-size:3.4em}.part h2{font-size:2em}
+}
+
+/* ---------- 인쇄 ---------- */
+@media print{
+  body{overflow:visible;background:#fff;color:#000}
+  #chrome,#toc,#rose{display:none!important}
+  #deck{position:static;display:block}
+  .slide{display:flex!important;position:relative;page-break-after:always;
+    min-height:auto;height:auto;font-size:11px;padding:1.6em 1.4em 1.4em 2.8em;animation:none}
+  .note{display:block}
+}
+</style>
+</head>
+<body>
+<svg id="defs" width="0" height="0" aria-hidden="true" focusable="false"
+     style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="var(--mag)"/></marker></defs>
+</svg>
+<main id="deck">
+
+<!-- ========== 표지 · 오리엔테이션 ========== -->
+<section class="slide cover" data-part="0" data-title="표지">
+  <canvas id="rose" hidden></canvas>
+  <div class="kicker">Republic of Korea Navy · Field Grade Officer Seminar</div>
+  <h1>조사연구방법과<br><span>논문작성법</span></h1>
+  <div class="sub">문제 설정에서 심사 통과까지 — 해군 소령을 위한 연구 항해술</div>
+  <div class="meta">
+    <div><b>Audience</b><span>해군 소령 (O-4)</span></div>
+    <div><b>Duration</b><span>3–4시간 특강</span></div>
+    <div><b>Legs</b><span>8개 구간 · 실습 3회</span></div>
+    <div><b>Case</b><span>DRM6 일상재구성법 조사</span></div>
+  </div>
+</section>
+
+<section class="slide" data-part="0" data-title="오늘의 항로">
+  <div class="eyebrow">Orientation · 항로 계획</div>
+  <h2 class="t">오늘의 항로</h2>
+  <p class="lead">연구는 순서가 있는 항해입니다. 뒤 단계에서 겪는 대부분의 고통은 앞 단계를 건너뛴 대가입니다. 오늘은 그 순서를 따라 한 바퀴 돕니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>구간</th><th>주제</th><th>핵심 질문</th><th>배정</th></tr>
+      <tr><td>01</td><td class="w">연구문제의 설정</td><td class="w">나는 정확히 무엇을 묻고 있는가?</td><td>30분</td></tr>
+      <tr><td>02</td><td class="w">문헌고찰</td><td class="w">이미 답이 나온 질문은 아닌가?</td><td>25분</td></tr>
+      <tr><td>03</td><td class="w">연구설계</td><td class="w">이 답을 어떻게 반박당하지 않게 얻는가?</td><td>35분</td></tr>
+      <tr><td>04</td><td class="w">표본과 표집</td><td class="w">누구에게 물어야 그 답이 일반화되는가?</td><td>25분</td></tr>
+      <tr><td>05</td><td class="w">측정과 설문개발</td><td class="w">내 질문지는 정말 그것을 재고 있는가?</td><td>40분</td></tr>
+      <tr><td>06</td><td class="w">자료분석</td><td class="w">숫자에서 어디까지 말할 수 있는가?</td><td>35분</td></tr>
+      <tr><td>07</td><td class="w">논문작성</td><td class="w">읽는 사람이 설득되게 쓰는 법은?</td><td>45분</td></tr>
+      <tr><td>08</td><td class="w">실행과 심사</td><td class="w">기한 안에 통과시키는 법은?</td><td>25분</td></tr>
+    </table></div>
+    <div class="row" style="margin-top:1em">
+      <span class="chip m">실습 1 · 연구문제 한 문장</span>
+      <span class="chip m">실습 2 · 문항 교정</span>
+      <span class="chip m">실습 3 · 목차 초안</span>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>시작 시 수강생에게 "지금 머릿속에 있는 논문 주제"를 메모지에 한 줄 적게 하고, 실습 1·3에서 그 메모를 계속 고쳐 쓰게 한다. 강의 끝에 손에 남는 산출물이 있어야 특강의 체감 효용이 생긴다.</div>
+</section>
+
+<section class="slide" data-part="0" data-title="보고서와 논문의 차이">
+  <div class="eyebrow">Orientation · 출발점</div>
+  <h2 class="t">여러분은 이미 자료를 다룬다<br>다만 목적이 다를 뿐이다</h2>
+  <p class="lead">군 실무 보고서와 학술 논문은 둘 다 근거로 주장을 세웁니다. 결정적 차이는 <em>누구를 설득하는가</em>, 그리고 <em>무엇을 남기는가</em>입니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>차원</th><th>실무 보고서</th><th>학술 논문</th></tr>
+      <tr><td>독자</td><td class="w">지휘관 — 결심이 필요한 사람</td><td class="w">동료 연구자 — 반박할 준비가 된 사람</td></tr>
+      <tr><td>목적</td><td class="w">의사결정 지원</td><td class="w">검증 가능한 지식의 축적</td></tr>
+      <tr><td>결론 위치</td><td class="w">두괄식 — 결론이 첫 장</td><td class="w">논증의 끝 — 근거를 밟은 뒤 결론</td></tr>
+      <tr><td>근거 기준</td><td class="w">현황·경험·현장 판단</td><td class="w">체계적 자료 + 재현 가능한 절차</td></tr>
+      <tr><td>선행 검토</td><td class="w">유사 사례 참고</td><td class="w">의무 — 무엇이 이미 밝혀졌는지 규명</td></tr>
+      <tr><td>불확실성</td><td class="w">가급적 단정 — "판단됨"</td><td class="w">명시 의무 — 신뢰구간·한계·대안설명</td></tr>
+      <tr><td>수명</td><td class="w">해당 결심까지</td><td class="w">인용되는 한 계속</td></tr>
+    </table></div>
+    <div class="call warn" style="margin-top:1.1em"><b>가장 흔한 실패</b>
+      군 경력이 길수록 논문 초고가 &lsquo;장문의 정책보고서&rsquo;가 됩니다. 문제의식은 훌륭한데 검증 절차가 없고, 결론이 자료보다 앞서 나갑니다. 오늘 강의는 그 간극을 메우는 것이 목표입니다.</div>
+  </div>
+  <div class="note"><b>강의 노트</b>여기서 청중의 강점을 먼저 인정할 것. 이들은 현장 문제의식, 데이터 접근성, 조직 이해도에서 일반 대학원생보다 압도적으로 유리하다. 부족한 것은 방법론적 절차뿐이며, 그것은 배우면 되는 것이라는 프레임으로 시작한다.</div>
+</section>
+
+<section class="slide" data-part="0" data-title="오늘의 산출물">
+  <div class="eyebrow">Orientation · 산출물</div>
+  <h2 class="t">오늘 손에 쥐고 나갈 세 가지</h2>
+  <div class="body g3">
+    <div class="card key"><span class="tag">01</span><h4>연구문제 한 문장</h4>
+      <p>"○○ 집단에서 A가 B에 미치는 영향은 C에 따라 어떻게 달라지는가?" 형식으로, 변수와 대상이 특정된 단일 문장.</p></div>
+    <div class="card key"><span class="tag">02</span><h4>연구설계 한 장</h4>
+      <p>설계 유형 · 표집 방법 · 표본 크기 근거 · 측정도구 출처 · 분석 기법까지 한 페이지로 압축한 설계 요약표.</p></div>
+    <div class="card key"><span class="tag">03</span><h4>논문 목차 초안</h4>
+      <p>장·절 수준까지 내려간 목차. 목차가 서지 않으면 논증이 서지 않은 것입니다.</p></div>
+  </div>
+  <div class="note"><b>강의 노트</b>이 세 가지는 각각 실습 1·2·3의 결과물이다. 마지막 슬라이드에서 다시 회수한다.</div>
+</section>
+
+<!-- ========== PART 1 ========== -->
+<section class="slide part" data-part="1" data-title="Part 01 · 연구문제">
+  <div class="pno">01</div>
+  <h2>연구문제의 설정</h2>
+  <div class="pen">Framing the Question</div>
+  <p class="pl">논문의 품질 상한선은 연구문제 단계에서 이미 결정됩니다. 분석 기법이 아무리 정교해도, 질문이 모호하면 결과도 모호합니다.</p>
+  <div class="pq">
+    <span class="chip">주제 → 문제 → 가설</span><span class="chip">FINER 기준</span>
+    <span class="chip">개념적·조작적 정의</span><span class="chip">변수와 연구모형</span>
+  </div>
+</section>
+
+<section class="slide" data-part="1" data-title="주제는 문제가 아니다">
+  <div class="eyebrow">Part 01 · 좁히기</div>
+  <h2 class="t">"주제"를 들고 오는 사람은 많고<br>"문제"를 들고 오는 사람은 드물다</h2>
+  <p class="lead">주제(topic)는 영역이고, 연구문제(research question)는 답이 있는 질문입니다. 지도교수가 "그래서 뭘 밝히겠다는 건가?"라고 묻는 지점이 바로 이 간극입니다.</p>
+  <div class="body">
+    <div class="fig">
+      <svg viewBox="0 0 720 210" role="img" aria-label="주제에서 연구문제, 가설로 좁혀지는 깔때기 도해">
+        <path d="M20,20 L700,20 L520,190 L200,190 Z" fill="var(--mag-soft)" stroke="var(--mag-line)"/>
+        <line x1="255" y1="20" x2="255" y2="190" stroke="var(--rule-2)" stroke-dasharray="3 3"/>
+        <line x1="470" y1="20" x2="470" y2="190" stroke="var(--rule-2)" stroke-dasharray="3 3"/>
+        <text x="40" y="48" font-family="var(--mono)" font-size="11" fill="var(--mag)" letter-spacing="2">TOPIC</text>
+        <text x="40" y="72" font-size="15" font-weight="700" fill="var(--ink)">주제</text>
+        <text x="40" y="96" font-size="12" fill="var(--ink-2)">"함정 승조원의 사기"</text>
+        <text x="40" y="116" font-size="11" fill="var(--ink-3)">— 범위. 답이 없음</text>
+        <text x="275" y="48" font-family="var(--mono)" font-size="11" fill="var(--mag)" letter-spacing="2">QUESTION</text>
+        <text x="275" y="72" font-size="15" font-weight="700" fill="var(--ink)">연구문제</text>
+        <text x="275" y="96" font-size="12" fill="var(--ink-2)">"장기 항해일수는 승조원</text>
+        <text x="275" y="113" font-size="12" fill="var(--ink-2)">직무소진에 영향을 주는가?"</text>
+        <text x="275" y="133" font-size="11" fill="var(--ink-3)">— 답이 있는 질문</text>
+        <text x="490" y="48" font-family="var(--mono)" font-size="11" fill="var(--mag)" letter-spacing="2">HYPOTHESIS</text>
+        <text x="490" y="72" font-size="15" font-weight="700" fill="var(--ink)">가설</text>
+        <text x="490" y="96" font-size="12" fill="var(--ink-2)">"연간 항해일수가 많을수록</text>
+        <text x="490" y="113" font-size="12" fill="var(--ink-2)">정서적 소진이 높을 것이다"</text>
+        <text x="490" y="133" font-size="11" fill="var(--ink-3)">— 방향까지 특정. 반증가능</text>
+        <line x1="215" y1="165" x2="248" y2="165" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="432" y1="165" x2="463" y2="165" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)"/>
+      </svg>
+    </div>
+    <div class="g3" style="margin-top:1em">
+      <div class="call def"><b>검증 1</b>이 질문에 "예/아니오" 또는 "얼마나"로 답할 수 있는가?</div>
+      <div class="call def"><b>검증 2</b>답이 틀렸다는 것을 보여줄 자료를 상상할 수 있는가?</div>
+      <div class="call def"><b>검증 3</b>답을 알면 누군가의 판단이 달라지는가?</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>세 번째 검증(so what)이 군 논문에서 특히 중요하다. 정책적 함의가 없는 연구는 국방 분야 심사에서 반드시 지적받는다.</div>
+</section>
+
+<section class="slide" data-part="1" data-title="FINER 기준">
+  <div class="eyebrow">Part 01 · 판정 기준</div>
+  <h2 class="t">좋은 연구문제의 다섯 가지 조건 — FINER</h2>
+  <p class="lead">주제를 하나 떠올릴 때마다 이 다섯 항목에 스스로 점수를 매기십시오. 하나라도 명백히 낙제면 그 주제는 버리는 것이 시간을 버는 길입니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>기준</th><th>묻는 것</th><th>군 연구에서의 현실적 점검</th></tr>
+      <tr><td>F — Feasible<br>실행가능성</td><td class="w">기한·표본·예산·권한 안에서 실제로 끝낼 수 있는가?</td><td class="w">부대 협조 공문이 나오는가? 표본 접근에 몇 개월이 필요한가? 보안 등급이 걸리지 않는가?</td></tr>
+      <tr><td>I — Interesting<br>흥미</td><td class="w">나와 학계·조직이 답을 궁금해하는가?</td><td class="w">2년을 버티게 하는 것은 결국 본인의 문제의식이다. 남의 주제는 완주율이 낮다.</td></tr>
+      <tr><td>N — Novel<br>새로움</td><td class="w">이미 확립된 사실의 반복은 아닌가?</td><td class="w">대상·맥락·변수 조합 중 하나만 새로워도 충분하다. 이론 자체를 새로 만들 필요는 없다.</td></tr>
+      <tr><td>E — Ethical<br>윤리성</td><td class="w">참여자에게 해가 없고 자발적 동의가 가능한가?</td><td class="w">계급 구조상 &lsquo;거부할 자유&rsquo;가 실질적으로 보장되는가가 핵심 쟁점이다. IRB 필수.</td></tr>
+      <tr><td>R — Relevant<br>중요성</td><td class="w">결과가 실무·정책·이론 중 무엇을 바꾸는가?</td><td class="w">"이 결과로 어떤 지침·제도·교육을 바꿀 수 있는가"에 한 문장으로 답할 수 있어야 한다.</td></tr>
+    </table></div>
+    <div class="call warn" style="margin-top:1em"><b>Feasible이 1순위다</b>
+      석사 논문에서 좌초의 8할은 흥미 부족이 아니라 실행 불가입니다. "이 자료를 언제, 누구의 결재로, 몇 명에게서 받을 수 있는가"에 답하지 못하는 주제는 아무리 훌륭해도 지금은 아닙니다.</div>
+  </div>
+  <div class="note"><b>강의 노트</b>수강생 각자가 자기 주제를 F·I·N·E·R 5점 척도로 채점하게 하고, 가장 낮은 항목을 옆사람과 공유하게 한다. 3분이면 충분하고 몰입도가 크게 오른다.</div>
+</section>
+
+<section class="slide" data-part="1" data-title="나쁜 연구문제 교정">
+  <div class="eyebrow">Part 01 · 교정</div>
+  <h2 class="t">고장난 연구문제, 여섯 유형</h2>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>유형</th><th class="w">고장난 질문</th><th class="w">교정</th></tr>
+      <tr><td>너무 넓음</td><td class="w">해군 조직문화를 어떻게 개선할 것인가?</td><td class="w">수평적 소통문화 인식이 초급간부 잔류의도에 미치는 영향은?</td></tr>
+      <tr><td>답이 자명함</td><td class="w">교육훈련은 직무능력에 도움이 되는가?</td><td class="w">시뮬레이터 훈련시간과 실기동 훈련시간 중 어느 쪽이 대응숙달도를 더 높이는가?</td></tr>
+      <tr><td>가치판단</td><td class="w">복지제도를 확대해야 하는가?</td><td class="w">관사 만족도가 장기복무 지원의사에 미치는 효과는 계급에 따라 다른가?</td></tr>
+      <tr><td>측정 불가</td><td class="w">군인정신이 전투력에 미치는 영향은?</td><td class="w">군 복무 몰입(3개 하위요인)이 임무수행 자기효능감에 미치는 영향은?</td></tr>
+      <tr><td>변수가 없음</td><td class="w">함정 근무 실태를 조사한다</td><td class="w">근무환경 요인(당직주기·거주여건·통신접근성)별 소진 수준의 차이는?</td></tr>
+      <tr><td>두 개 질문</td><td class="w">스트레스 원인과 대처방안은 무엇인가?</td><td class="w">주 연구문제를 하나로 두고, 대처방안은 &lsquo;논의&rsquo;의 함의로 다룬다</td></tr>
+    </table></div>
+    <div class="call do" style="margin-top:1em"><b>연구문제 문장 틀</b>
+      <span class="mono">[대상 집단]에서 [독립변수]가 [종속변수]에 미치는 영향은 [조절/매개변수]에 따라 어떻게 달라지는가?</span> — 이 한 문장에 빈칸이 남아 있다면, 아직 연구를 시작할 수 없습니다.</div>
+  </div>
+</section>
+
+<section class="slide" data-part="1" data-title="개념적 정의와 조작적 정의">
+  <div class="eyebrow">Part 01 · 정의</div>
+  <h2 class="t">개념을 자료로 바꾸는 사다리</h2>
+  <p class="lead">"사기가 높다"는 말은 자료가 아닙니다. 개념을 측정 가능한 숫자까지 내려보내는 네 단계가 필요하고, 심사에서 가장 자주 무너지는 지점이 바로 여기입니다.</p>
+  <div class="body g21">
+    <div class="fig">
+      <svg viewBox="0 0 420 300" role="img" aria-label="개념에서 차원, 지표, 문항으로 내려가는 측정 사다리">
+        <g font-size="12">
+          <rect x="20" y="14" width="380" height="52" fill="var(--mag-soft)" stroke="var(--mag-line)"/>
+          <text x="34" y="34" font-family="var(--mono)" font-size="10" fill="var(--mag)" letter-spacing="1.6">CONSTRUCT · 개념</text>
+          <text x="34" y="54" font-size="14" font-weight="700" fill="var(--ink)">직무소진 (Burnout)</text>
+          <rect x="20" y="86" width="380" height="52" fill="var(--paper-3)" stroke="var(--rule-2)"/>
+          <text x="34" y="106" font-family="var(--mono)" font-size="10" fill="var(--ink-3)" letter-spacing="1.6">DIMENSION · 차원</text>
+          <text x="34" y="126" font-size="13" fill="var(--ink)">정서적 고갈 · 냉소 · 효능감 저하</text>
+          <rect x="20" y="158" width="380" height="52" fill="var(--paper-3)" stroke="var(--rule-2)"/>
+          <text x="34" y="178" font-family="var(--mono)" font-size="10" fill="var(--ink-3)" letter-spacing="1.6">INDICATOR · 지표</text>
+          <text x="34" y="198" font-size="13" fill="var(--ink)">고갈 = 회복되지 않는 피로의 빈도</text>
+          <rect x="20" y="230" width="380" height="56" fill="var(--paper-3)" stroke="var(--rule-2)"/>
+          <text x="34" y="250" font-family="var(--mono)" font-size="10" fill="var(--ink-3)" letter-spacing="1.6">ITEM · 문항</text>
+          <text x="34" y="268" font-size="12" fill="var(--ink)">"아침에 일어나면 또 근무해야 한다는</text>
+          <text x="34" y="282" font-size="12" fill="var(--ink)">생각에 지친다" (1–7점)</text>
+          <path d="M210,66 L210,84" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)"/>
+          <path d="M210,138 L210,156" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)"/>
+          <path d="M210,210 L210,228" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)"/>
+        </g>
+      </svg>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>개념적 정의</b>그 개념이 무엇인지 <b>말로</b> 규정한 것. 반드시 선행연구의 정의를 인용하고, 여러 정의 중 <em>본 연구가 채택한 것</em>을 명시합니다.<br><span class="mono" style="color:var(--ink-3)">예) 직무소진: 만성적 직무 스트레스에 대한 반응으로 나타나는 정서적 고갈·냉소·효능감 저하의 증후군(Maslach &amp; Jackson, 1981)</span></div>
+      <div class="call def"><b>조작적 정의</b>그 개념을 <b>어떻게 재는지</b> 규정한 것. 도구·문항수·척도·점수 산출 방식까지 씁니다.<br><span class="mono" style="color:var(--ink-3)">예) 본 연구에서 직무소진은 MBI-GS 한국어판 15문항의 7점 리커트 평균 점수로, 점수가 높을수록 소진이 심한 것으로 조작적으로 정의한다</span></div>
+      <div class="call warn"><b>심사에서 나오는 질문</b>"선생님이 잰 그 점수가 정말 &lsquo;소진&rsquo;입니까, 아니면 그냥 &lsquo;피곤함&rsquo;입니까?" — 이 질문에 대한 답이 곧 구성타당도이며, Part 05에서 다룹니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="1" data-title="변수와 연구모형">
+  <div class="eyebrow">Part 01 · 모형</div>
+  <h2 class="t">변수의 역할을 그림 한 장으로 확정하라</h2>
+  <p class="lead">연구모형 그림은 장식이 아니라 <em>계약서</em>입니다. 여기에 그린 화살표 하나하나가 가설이 되고, 결과 장의 표가 되고, 논의의 문단이 됩니다.</p>
+  <div class="body g12">
+    <div class="stack">
+      <div class="call def"><b>독립변수 IV</b>원인으로 상정한 변수 · 연간 항해일수</div>
+      <div class="call def"><b>종속변수 DV</b>결과로 상정한 변수 · 직무소진</div>
+      <div class="call def"><b>매개변수 M</b>IV가 DV에 이르는 <em>경로</em> · 수면의 질</div>
+      <div class="call def"><b>조절변수 Mo</b>IV→DV 관계의 <em>강도를 바꾸는</em> 조건 · 부대 응집력</div>
+      <div class="call def"><b>통제변수 CV</b>다른 설명을 배제하기 위해 통계적으로 고정 · 계급·연령·직별</div>
+    </div>
+    <div>
+      <div class="fig">
+        <svg viewBox="0 0 460 260" role="img" aria-label="독립 매개 종속 조절 변수로 구성된 연구모형 도해">
+          <g font-size="12" text-anchor="middle">
+            <rect x="14" y="110" width="112" height="46" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+            <text x="70" y="130" font-size="12" font-weight="700" fill="var(--ink)">항해일수</text>
+            <text x="70" y="146" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">IV</text>
+            <rect x="174" y="26" width="112" height="46" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+            <text x="230" y="46" font-size="12" font-weight="700" fill="var(--ink)">수면의 질</text>
+            <text x="230" y="62" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">M · 매개</text>
+            <rect x="334" y="110" width="112" height="46" fill="var(--mag-soft)" stroke="var(--mag)"/>
+            <text x="390" y="130" font-size="12" font-weight="700" fill="var(--ink)">직무소진</text>
+            <text x="390" y="146" font-family="var(--mono)" font-size="9.5" fill="var(--mag)">DV</text>
+            <rect x="174" y="196" width="112" height="46" fill="var(--paper-3)" stroke="var(--ink-2)" stroke-dasharray="4 3"/>
+            <text x="230" y="216" font-size="12" font-weight="700" fill="var(--ink)">부대 응집력</text>
+            <text x="230" y="232" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">Mo · 조절</text>
+            <path d="M126,124 L170,72" stroke="var(--ink-2)" stroke-width="1.4" marker-end="url(#ar)" fill="none"/>
+            <path d="M290,72 L332,122" stroke="var(--ink-2)" stroke-width="1.4" marker-end="url(#ar)" fill="none"/>
+            <path d="M126,138 L330,138" stroke="var(--mag)" stroke-width="1.8" marker-end="url(#ar)"/>
+            <path d="M230,194 L230,150" stroke="var(--ink-2)" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+            <text x="228" y="112" font-family="var(--mono)" font-size="9.5" fill="var(--mag)" text-anchor="middle">H1 (직접효과)</text>
+            <text x="128" y="88" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">a</text>
+            <text x="322" y="88" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">b</text>
+          </g>
+        </svg>
+      </div>
+      <div class="figcap">화살표 = 가설. 점선 = 조절(상호작용항). a×b = 간접효과</div>
+      <div class="call do" style="margin-top:.8em"><b>가설 진술 규칙</b>화살표마다 번호를 붙이고(H1, H2a…), 각 가설은 <em>방향</em>까지 진술합니다. "관계가 있을 것이다"보다 "정적(+) 영향을 미칠 것이다"가 항상 낫습니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="1" data-title="실습 1">
+  <div class="eyebrow">Part 01 · 실습</div>
+  <h2 class="t">실습 1 — 연구문제 한 문장 <span class="mono" style="font-size:.5em;color:var(--ink-3)">10분</span></h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card key"><h4>1단계 · 빈칸 채우기 (4분)</h4>
+        <p class="mono" style="color:var(--ink);font-size:.92em;line-height:2">
+        ______________ 에서<br>______________ 가(이)<br>______________ 에 미치는 영향은<br>______________ 에 따라 어떻게 다른가?</p></div>
+      <div class="card"><h4>2단계 · 자가 채점 (3분)</h4>
+        <p>F·I·N·E·R 각 5점 만점으로 채점. 가장 낮은 항목 하나에 동그라미.</p></div>
+      <div class="card"><h4>3단계 · 상호 검토 (3분)</h4>
+        <p>옆 사람에게 문장만 읽어주고 되묻게 합니다 — "그래서 무엇과 무엇의 관계를 보겠다는 겁니까?" 한 번에 되돌아오지 않으면 문장이 아직 모호한 것입니다.</p></div>
+    </div>
+    <div class="stack">
+      <div class="call case"><b>작성 예시 · 해군 맥락</b>
+        "<b>전투함 근무 부사관</b>에서 <b>연간 해상근무일수</b>가 <b>직무소진</b>에 미치는 영향은 <b>부대 응집력</b>에 따라 어떻게 달라지는가?"</div>
+      <div class="call case"><b>작성 예시 · 교육 맥락</b>
+        "<b>해군 초급장교</b>에서 <b>멘토링 경험의 질</b>이 <b>장기복무 지원의사</b>에 미치는 영향을 <b>조직몰입</b>이 매개하는가?"</div>
+      <div class="call warn"><b>자주 나오는 함정</b>
+        빈칸에 "여러 가지 요인"이라고 쓰고 싶어지면, 아직 변수를 고르지 못한 것입니다. 요인 탐색은 문헌고찰의 몫이지 연구문제의 몫이 아닙니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>이 실습 결과는 반드시 종이에 남기게 한다. Part 07 실습 3에서 이 문장을 목차로 전개시킨다.</div>
+</section>
+
+<!-- ========== PART 2 ========== -->
+<section class="slide part" data-part="2" data-title="Part 02 · 문헌고찰">
+  <div class="pno">02</div>
+  <h2>문헌고찰</h2>
+  <div class="pen">Reviewing the Literature</div>
+  <p class="pl">문헌고찰은 읽은 것을 나열하는 숙제가 아니라, 내 연구가 서 있을 자리를 만드는 작업입니다. 잘 쓴 문헌고찰은 그 자체로 "왜 이 연구가 필요한가"의 증명입니다.</p>
+  <div class="pq"><span class="chip">검색 전략</span><span class="chip">문헌 매트릭스</span><span class="chip">종합형 서술</span><span class="chip">연구 공백</span></div>
+</section>
+
+<section class="slide" data-part="2" data-title="문헌고찰의 세 가지 일">
+  <div class="eyebrow">Part 02 · 목적</div>
+  <h2 class="t">문헌고찰이 실제로 하는 세 가지 일</h2>
+  <div class="body g3">
+    <div class="card"><span class="tag">01</span><h4>중복 회피</h4>
+      <p>이미 답이 나온 질문을 2년에 걸쳐 다시 묻는 사고를 막습니다. 동일 주제 선행연구를 못 찾은 것이지, 없는 것이 아닌 경우가 대부분입니다.</p></div>
+    <div class="card"><span class="tag">02</span><h4>도구·설계 조달</h4>
+      <p>측정도구, 표본 크기, 분석 기법을 새로 발명할 필요가 없습니다. 검증된 척도를 가져다 쓰는 것이 타당도 확보의 가장 빠른 길입니다.</p></div>
+    <div class="card key"><span class="tag">03</span><h4>공백의 논증</h4>
+      <p>"선행연구는 A와 B는 밝혔으나 C는 다루지 않았다. 특히 군 조직 맥락에서는 검증된 바 없다." — 이 문장이 곧 연구의 정당화입니다.</p></div>
+  </div>
+  <div class="body" style="flex:0 0 auto;margin-top:1.1em">
+    <div class="call warn"><b>순서에 관한 오해</b>
+      "주제를 정하고 → 문헌을 읽는다"가 아니라 <em>"대략 읽고 → 주제를 좁히고 → 다시 읽는다"</em>가 실제 순서입니다. 첫 검색 후 연구문제가 바뀌지 않았다면, 아직 충분히 읽지 않은 것입니다.</div>
+  </div>
+</section>
+
+<section class="slide" data-part="2" data-title="검색 전략">
+  <div class="eyebrow">Part 02 · 탐색</div>
+  <h2 class="t">체계적으로 찾는 법</h2>
+  <p class="lead">"구글에 쳐봤는데 없더라"는 문헌고찰이 아닙니다. 검색은 <em>기록 가능한 절차</em>여야 하고, 방법 장에 그 절차를 쓸 수 있어야 합니다.</p>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>1 · 검색어 행렬을 만든다</h4>
+        <p class="mono" style="color:var(--ink);font-size:.85em">(소진 OR 번아웃 OR burnout)<br>AND (군 OR 해군 OR military OR navy)<br>AND (근무환경 OR 교대 OR deployment)</p>
+        <p style="margin-top:.5em">개념축 × 대상축 × 맥락축으로 나누고, 각 축의 <b>동의어를 국문·영문 모두</b> 확보합니다. 한국 군 연구는 국문 DB에만 있는 경우가 많습니다.</p></div>
+      <div class="card"><h4>2 · 여러 DB를 교차한다</h4>
+        <ul class="d">
+          <li>국내: RISS, KISS, DBpia, 국회전자도서관, 학위논문 원문</li>
+          <li>국방 특화: 한국국방연구원(KIDA) 발간물, 국방대·해사 학술지, 「국방정책연구」·「군사」·「해양전략」</li>
+          <li>국외: Google Scholar, Web of Science, PsycINFO, DTIC (미 국방기술정보센터)</li>
+        </ul></div>
+      <div class="card"><h4>3 · 인용 추적으로 확장한다</h4>
+        <p><b>후방 추적</b> 핵심 논문의 참고문헌을 따라 거슬러 올라가기. <b>전방 추적</b> 그 논문을 인용한 최신 논문 찾기(Scholar의 "인용됨"). 좋은 논문 한 편만 찾으면 나머지는 자동으로 딸려옵니다.</p></div>
+    </div>
+    <div class="stack">
+      <div class="card key"><h4>선별 기준을 미리 정해두기</h4>
+        <ul class="d">
+          <li><b>포함</b> 최근 10년, 동료심사 학술지 또는 학위논문, 실증자료 포함</li>
+          <li><b>제외</b> 의견 기고, 데이터 없는 개관, 중복 게재</li>
+          <li><b>예외적 포함</b> 이론의 원전은 연도 무관 (예: 1981년 Maslach 원논문)</li>
+        </ul>
+        <p style="margin-top:.5em">이 기준을 미리 써두면 방법 장에 그대로 옮겨 쓸 수 있고, "왜 그 논문은 뺐습니까"라는 심사 질문에 즉답할 수 있습니다.</p></div>
+      <div class="call do"><b>읽기 순서</b>초록 → 결론 → 표 → 방법 → 서론 순으로 읽습니다. 처음부터 정독하면 하루에 두 편도 못 읽습니다. 이 순서면 40편을 하루에 훑고, 그중 정독할 8편을 골라낼 수 있습니다.</div>
+      <div class="call warn"><b>양의 기준</b>석사 논문 기준 <b>정독 30~50편 · 인용 60~100편</b>이 통상적 수준입니다. 다만 숫자보다 중요한 것은 <em>핵심 연구자 3~5명의 계보를 아는가</em>입니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="2" data-title="문헌 매트릭스">
+  <div class="eyebrow">Part 02 · 정리</div>
+  <h2 class="t">읽은 것을 한 장의 표로 눌러 담아라</h2>
+  <p class="lead">논문별 요약 노트는 나중에 아무 쓸모가 없습니다. 처음부터 <em>비교 가능한 표</em>로 정리하면 문헌고찰 문단이 표에서 자동으로 나옵니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>저자(연도)</th><th>대상·표본</th><th>설계</th><th>주요 변수</th><th>측정도구</th><th>핵심 결과</th><th>한계 / 내 연구와의 관계</th></tr>
+      <tr><td>김○○(2021)</td><td class="w">육군 부사관 412명</td><td class="w">횡단 서베이</td><td class="w">교대근무→소진</td><td class="w">MBI-GS 한국판</td><td class="w">교대주기 짧을수록 소진↑ (β=.34)</td><td class="w">함정 근무의 <em>고립성</em> 미반영 → 본 연구의 차별점</td></tr>
+      <tr><td>Park(2019)</td><td class="w">미 해군 승조원 1,208명</td><td class="w">종단 2시점</td><td class="w">파병기간→PTSD</td><td class="w">PCL-5</td><td class="w">6개월 초과 시 급증</td><td class="w">미군 표본 → 한국 해군 일반화 불확실</td></tr>
+      <tr><td>이○○(2023)</td><td class="w">해군 초급간부 236명</td><td class="w">횡단 · 매개</td><td class="w">응집력→몰입→잔류</td><td class="w">자체 개발 척도</td><td class="w">완전매개</td><td class="w">도구 타당화 부족 → 본 연구는 검증된 척도 사용</td></tr>
+      <tr><td>최○○(2024)</td><td class="w">해군 승조원 189명</td><td class="w">질적 · 면담</td><td class="w">해상근무 경험</td><td class="w">반구조화 면담</td><td class="w">&lsquo;회복 없는 일상&rsquo; 주제 도출</td><td class="w">양적 검증 부재 → 본 연구가 계량화</td></tr>
+    </table></div>
+    <div class="g2" style="margin-top:1.1em">
+      <div class="call do"><b>표에서 문단으로</b>
+        &lsquo;한계&rsquo; 열을 세로로 읽으면 연구 공백이 보이고, &lsquo;측정도구&rsquo; 열을 세로로 읽으면 내가 쓸 도구가 결정되며, &lsquo;핵심 결과&rsquo; 열을 세로로 읽으면 가설의 방향이 나옵니다.</div>
+      <div class="call def"><b>도구</b>엑셀·구글시트로 충분합니다. 서지 관리는 Zotero(무료)나 EndNote를 쓰되, <em>PDF에 직접 메모하지 말고 반드시 표에 옮겨 적으십시오.</em> 표에 옮기는 순간이 실제로 이해하는 순간입니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="2" data-title="나열형에서 종합형으로">
+  <div class="eyebrow">Part 02 · 서술</div>
+  <h2 class="t">"누가 무엇을 했다"가 아니라<br>"무엇이 밝혀졌다"로 쓴다</h2>
+  <p class="lead">문헌고찰에서 가장 흔한 지적은 <em>"연구 소개가 나열되어 있다"</em>입니다. 주어를 연구자에서 <b>주장</b>으로 바꾸면 대부분 해결됩니다.</p>
+  <div class="body">
+    <div class="ba">
+      <div><b>× 나열형</b>
+        <p class="q">김○○(2021)은 육군 부사관 412명을 대상으로 교대근무와 소진의 관계를 연구하였다. 그 결과 교대주기가 짧을수록 소진이 높은 것으로 나타났다. 한편 이○○(2023)은 해군 초급간부 236명을 대상으로 응집력과 잔류의도의 관계를 연구하였다. 그 결과 조직몰입이 완전매개하는 것으로 나타났다. 또한 최○○(2024)은 질적 연구를 수행하였다.</p>
+        <p style="margin-top:.6em;color:var(--crit)">→ 세 문단이 서로 대화하지 않는다. 읽고 나도 &lsquo;그래서 무엇이 밝혀졌는가&rsquo;를 말할 수 없다.</p></div>
+      <div><b>○ 종합형</b>
+        <p class="q">군 조직에서 근무 강도가 소진을 높인다는 점은 비교적 일관되게 확인되어 왔다(김○○, 2021; Park, 2019). 다만 그 효과가 <b>조직 요인에 의해 완충되는지</b>에 대해서는 결과가 갈린다. 응집력의 보호 효과를 보고한 연구(이○○, 2023)가 있는 반면, 함정과 같이 <b>이탈이 불가능한 폐쇄 환경</b>에서는 응집력이 오히려 압력으로 작용할 가능성이 질적으로 제기된 바 있다(최○○, 2024). 즉 완충 가설은 <b>근무 환경의 폐쇄성</b>을 고려하지 않은 채 검증되어 왔다.</p>
+        <p style="margin-top:.6em;color:var(--good)">→ 합의점 · 불일치점 · 공백이 순서대로 드러나고, 마지막 문장이 곧 본 연구의 존재 이유가 된다.</p></div>
+    </div>
+    <div class="g3" style="margin-top:1.1em">
+      <div class="call def"><b>묶는 기준</b>연구자별이 아니라 <em>쟁점별·변수별·시기별</em>로 소제목을 잡습니다.</div>
+      <div class="call def"><b>다중 인용</b>같은 주장을 하는 연구는 괄호 안에 함께 묶습니다 <span class="mono">(A, 2021; B, 2023)</span>.</div>
+      <div class="call def"><b>마무리 문단</b>각 절 끝에 "이상을 종합하면 ~"으로 시작하는 요약 문단을 반드시 붙입니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>이 슬라이드가 문헌고찰 파트의 핵심이다. 시간이 부족하면 앞의 검색 전략을 줄이더라도 이 before/after는 반드시 읽어준다.</div>
+</section>
+
+<!-- ========== PART 3 ========== -->
+<section class="slide part" data-part="3" data-title="Part 03 · 연구설계">
+  <div class="pno">03</div>
+  <h2>연구설계</h2>
+  <div class="pen">Research Design</div>
+  <p class="pl">설계란 결과가 나온 뒤에 쏟아질 반론을 <em>미리</em> 막아두는 일입니다. 자료를 다 모은 뒤에는 어떤 통계도 잘못된 설계를 구제하지 못합니다.</p>
+  <div class="pq"><span class="chip">인과추론 3조건</span><span class="chip">설계 유형</span><span class="chip">타당도 4종</span><span class="chip">군 맥락 제약</span></div>
+</section>
+
+<section class="slide" data-part="3" data-title="인과추론의 세 조건">
+  <div class="eyebrow">Part 03 · 논리</div>
+  <h2 class="t">"영향을 미친다"고 말하려면<br>세 가지를 동시에 보여야 한다</h2>
+  <div class="body g3">
+    <div class="card"><span class="tag">01</span><h4>공변관계</h4>
+      <p>X가 변할 때 Y도 변한다. 상관계수·회귀계수가 담당하는 부분이며, <b>가장 쉬운 조건</b>입니다.</p>
+      <p style="margin-top:.4em;color:var(--ink-3)">대부분의 석사 논문은 여기까지만 보이고 "영향을 미쳤다"고 씁니다.</p></div>
+    <div class="card"><span class="tag">02</span><h4>시간적 선행</h4>
+      <p>X가 Y보다 먼저 발생했다. <b>횡단 설계로는 원리상 확보 불가</b>합니다. 한 시점에 다 물었다면 소진이 높아서 근무를 힘들게 지각한 것일 수도 있습니다.</p></div>
+    <div class="card key"><span class="tag">03</span><h4>대안설명 배제</h4>
+      <p>X 말고 Y를 설명할 제3의 변수가 없다. 통제변수·무선할당·준실험 기법이 담당하며, <b>심사에서 가장 집요하게 파고드는 지점</b>입니다.</p></div>
+  </div>
+  <div class="body" style="flex:0 0 auto;margin-top:1.2em">
+    <div class="g2">
+      <div class="call warn"><b>횡단 설계의 정직한 서술</b>
+        조건 2·3을 확보하지 못했다면 결론에서 &lsquo;영향&rsquo;·&lsquo;효과&rsquo;가 아니라 <em>&lsquo;관련&rsquo;·&lsquo;연관&rsquo;</em>이라고 씁니다. 이 한 단어 차이가 심사에서 "방법론을 이해하고 있다"는 신호가 됩니다.</div>
+      <div class="call do"><b>차선책</b>
+        무선할당이 불가능한 군 조직에서는 ① 이론적으로 정당화된 시간 순서 명시, ② 핵심 교란변수 사전 측정·통제, ③ 가능하면 2시점 이상 측정 — 이 세 가지가 현실적인 최선입니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="3" data-title="설계 유형 지도">
+  <div class="eyebrow">Part 03 · 선택</div>
+  <h2 class="t">설계 유형 지도 — 무엇을 언제 고르는가</h2>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>설계</th><th>적합한 연구문제</th><th>강점</th><th>약점</th><th>군 적용 가능성</th></tr>
+      <tr><td>진실험</td><td class="w">이 교육 프로그램은 효과가 있는가?</td><td class="w">인과 주장 가능 (무선할당)</td><td class="w">현실적 실행 난이도</td><td class="b">낮음 — 무선할당이 지휘체계와 충돌</td></tr>
+      <tr><td>준실험</td><td class="w">신규 제도 도입 부대와 미도입 부대의 차이는?</td><td class="w">현실적이면서 비교집단 확보</td><td class="w">집단 간 사전 차이(선발편향)</td><td class="g">높음 — 부대 단위 비교가 자연스러움</td></tr>
+      <tr><td>서베이<br>(횡단)</td><td class="w">A와 B는 어떤 관계인가? 집단 간 차이는?</td><td class="w">대규모·저비용·다변수 동시</td><td class="w">인과 주장 불가, 동일방법편의</td><td class="g">매우 높음 — 석사 논문의 표준</td></tr>
+      <tr><td>종단·패널</td><td class="w">시간이 지나며 무엇이 변하는가?</td><td class="w">시간적 선행 확보, 변화 추적</td><td class="w">탈락, 기간 소요</td><td class="w">중간 — 인사이동·전출입이 최대 난제</td></tr>
+      <tr><td>사례연구</td><td class="w">이 사건에서 무슨 일이 어떻게 벌어졌는가?</td><td class="w">맥락의 깊이, 과정 규명</td><td class="w">일반화 제한</td><td class="g">높음 — 작전·사고 사례 분석에 적합</td></tr>
+      <tr><td>델파이</td><td class="w">전문가들이 합의하는 우선순위는?</td><td class="w">전문가 지식의 체계적 수렴</td><td class="w">패널 구성에 결과가 좌우됨</td><td class="g">높음 — 정책 과제 도출에 다수 활용</td></tr>
+      <tr><td>내용분석</td><td class="w">문서·교범·언론은 무엇을 어떻게 다뤘는가?</td><td class="w">비반응적 — 대상자 부담 없음</td><td class="w">코딩 신뢰도 확보 부담</td><td class="g">높음 — 교리·규정 자료 접근 용이</td></tr>
+      <tr><td>혼합방법</td><td class="w">얼마나 그러하며, 왜 그러한가?</td><td class="w">수치 + 해석의 상보</td><td class="w">공수 2배, 통합 설계 난이도</td><td class="w">중간 — 시간 여유가 있을 때만</td></tr>
+    </table></div>
+  </div>
+  <div class="note"><b>강의 노트</b>수강생 대다수는 횡단 서베이를 하게 된다. 그것이 나쁜 선택이 아니라 &lsquo;제약 하의 합리적 선택&rsquo;임을 분명히 하되, 그 한계를 논문에 정직하게 쓰는 것이 조건임을 강조한다.</div>
+</section>
+
+<section class="slide" data-part="3" data-title="내적타당도 위협">
+  <div class="eyebrow">Part 03 · 타당도</div>
+  <h2 class="t">내적타당도를 위협하는 것들</h2>
+  <p class="lead">"X 때문에 Y가 변했다"는 주장에 대한 <em>대안 설명 목록</em>입니다. 심사위원은 이 목록을 머릿속에 두고 질문합니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>위협</th><th>내용</th><th>군 맥락 예시</th><th>대응</th></tr>
+      <tr><td>역사</td><td class="w">연구 기간 중 외부 사건이 발생</td><td class="w">측정 사이에 대형 사고·경계태세 격상 발생</td><td class="w">통제집단, 측정 시점 기록</td></tr>
+      <tr><td>성숙</td><td class="w">시간 경과에 따른 자연스러운 변화</td><td class="w">입대 후 시간이 지나면 누구나 적응한다</td><td class="w">비교집단 확보</td></tr>
+      <tr><td>검사효과</td><td class="w">사전검사 자체가 사후를 바꿈</td><td class="w">소진 문항에 응답한 뒤 자기 상태를 자각</td><td class="w">솔로몬 4집단, 사후검사만 설계</td></tr>
+      <tr><td>도구효과</td><td class="w">측정 방식이 중간에 바뀜</td><td class="w">1차는 지면, 2차는 모바일로 조사</td><td class="w">동일 도구·동일 방식 고정</td></tr>
+      <tr><td>통계적 회귀</td><td class="w">극단값이 평균으로 돌아옴</td><td class="w">&lsquo;소진 최상위&rsquo; 인원만 뽑아 프로그램 투입</td><td class="w">극단값 기준 선발 회피</td></tr>
+      <tr><td>선발편향</td><td class="w">집단이 처음부터 달랐음</td><td class="w">지원자만 프로그램 참여</td><td class="w">무선할당, PSM, 사전점수 통제</td></tr>
+      <tr><td>탈락</td><td class="w">특정 성향자가 이탈</td><td class="w">전출·파견자가 2차 조사에서 빠짐</td><td class="w">탈락자·잔류자 사전점수 비교 보고</td></tr>
+      <tr><td>확산·보상</td><td class="w">처치가 통제집단으로 새어감</td><td class="w">같은 함정 내 통제집단이 교육내용을 전해 들음</td><td class="w">부대 단위 배정, 사후 확인 문항</td></tr>
+    </table></div>
+    <div class="call do" style="margin-top:1em"><b>논문에 쓰는 법</b>
+      모두 통제할 수는 없습니다. 통제하지 못한 위협은 &lsquo;연구의 한계&rsquo;에 <em>이름을 정확히 불러</em> 쓰십시오. "탈락편향의 가능성을 배제할 수 없다. 다만 탈락자와 잔류자의 1차 소진 점수 차이는 유의하지 않았다(t=1.02, p=.31)"는 서술은 약점이 아니라 <b>역량의 증거</b>로 읽힙니다.</div>
+  </div>
+</section>
+
+<section class="slide" data-part="3" data-title="네 가지 타당도">
+  <div class="eyebrow">Part 03 · 타당도</div>
+  <h2 class="t">타당도는 하나가 아니라 넷이다</h2>
+  <div class="body g4">
+    <div class="card"><span class="tag">내적</span><h4>정말 X가 원인인가</h4>
+      <p>관찰된 관계가 인과인가, 아니면 제3변수·설계 결함의 산물인가.</p>
+      <p style="margin-top:.4em"><b>핵심 도구</b> 무선할당 · 통제변수 · 비교집단</p></div>
+    <div class="card"><span class="tag">외적</span><h4>어디까지 일반화되는가</h4>
+      <p>이 표본의 결과가 다른 대상·시기·장소·부대에도 적용되는가.</p>
+      <p style="margin-top:.4em"><b>핵심 도구</b> 확률표집 · 표본 대표성 서술 · 재현</p></div>
+    <div class="card key"><span class="tag">구성</span><h4>재려던 것을 쟀는가</h4>
+      <p>&lsquo;소진&rsquo; 점수가 정말 소진인가, 그냥 피로·불만인가. 개념과 측정의 일치도.</p>
+      <p style="margin-top:.4em"><b>핵심 도구</b> 요인분석 · 수렴/판별타당도</p></div>
+    <div class="card"><span class="tag">통계</span><h4>결론이 통계적으로 정당한가</h4>
+      <p>검정력 부족, 가정 위반, 다중검정, 신뢰도 낮은 측정이 결론을 왜곡하지 않았는가.</p>
+      <p style="margin-top:.4em"><b>핵심 도구</b> 검정력 분석 · 가정 검토 · 효과크기</p></div>
+  </div>
+  <div class="body" style="flex:0 0 auto;margin-top:1.2em">
+    <div class="call warn"><b>상충 관계</b>
+      네 가지는 종종 서로를 갉아먹습니다. 실험실에서 조건을 엄격히 통제하면 내적타당도는 올라가지만 외적타당도는 떨어집니다. 반대로 실제 부대에서 자연스럽게 조사하면 외적타당도는 확보되지만 대안설명이 늘어납니다. <em>어느 쪽을 우선했고 왜 그랬는지를 방법 장에 명시</em>하는 것이 성숙한 설계입니다.</div>
+  </div>
+</section>
+
+<section class="slide" data-part="3" data-title="군 조직 연구의 제약">
+  <div class="eyebrow">Part 03 · 현실</div>
+  <h2 class="t">군 조직에서 연구한다는 것</h2>
+  <p class="lead">군은 연구자에게 <em>최고의 접근성과 최악의 편향</em>을 동시에 줍니다. 이 구조적 특성을 설계 단계에서 다루지 않으면 자료는 모였지만 해석할 수 없는 상태가 됩니다.</p>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>계급 구조 — 자발성의 문제</h4>
+        <p>지휘관이 배포한 설문에 &lsquo;참여하지 않을 자유&rsquo;는 형식적으로만 존재합니다. 응답률이 98%인 군 설문은 대표성이 좋은 것이 아니라 <b>강제성이 강했던 것</b>일 수 있습니다.</p>
+        <p style="margin-top:.4em"><b>대응</b> 온라인 링크 자율 접속 · 미참여 시 불이익 없음 명시 · 지휘계선과 분리된 회수 경로</p></div>
+      <div class="card"><h4>사회적 바람직성 편향</h4>
+        <p>"부대에 불만이 있는가"에 정직하게 답하면 자신에게 돌아올 수 있다는 인식이 있는 한, 응답은 위쪽으로 쏠립니다.</p>
+        <p style="margin-top:.4em"><b>대응</b> 완전 익명 보장 절차를 <em>설문 첫 화면에 구체적으로</em> 기술 · 개인식별정보 미수집 · 부대 단위 최소 집계 인원(예: 10명 미만 부대는 결과 미분리) 사전 공지</p></div>
+      <div class="card"><h4>보안 — 자료의 공개 가능성</h4>
+        <p>수집 단계에서는 문제없던 자료가 논문 게재 단계에서 걸릴 수 있습니다. 부대명·함정명·작전 정보·정원 규모는 특히 민감합니다.</p>
+        <p style="margin-top:.4em"><b>대응</b> 착수 전 보안심사 요건 확인 · 부대는 A·B·C로 익명 코딩 · 원자료 보관 및 파기 절차 사전 합의</p></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>인사이동 — 종단 연구의 천적</h4>
+        <p>6개월 뒤 2차 조사를 하면 상당수가 전출·전역합니다. 종단 설계 시 <b>탈락률 30~50%를 기본 가정</b>으로 표본을 잡아야 합니다.</p>
+        <p style="margin-top:.4em"><b>대응</b> 1차 표본을 목표의 1.6~2배로 · 개인 식별은 부대 무관 코드(예: 휴대폰 뒷자리 해시)로</p></div>
+      <div class="card"><h4>집단 구조 — 자료의 위계성</h4>
+        <p>승조원은 함정에, 함정은 전단에 속합니다. 같은 함정 인원의 응답은 서로 독립적이지 않습니다. 이를 무시하고 개인 단위 회귀를 돌리면 <b>표준오차가 과소추정</b>되어 없는 효과가 유의하게 나옵니다.</p>
+        <p style="margin-top:.4em"><b>대응</b> ICC 확인 → 필요 시 다층모형(HLM) 또는 군집 강건표준오차</p></div>
+      <div class="call do"><b>IRB는 예외 없이</b>
+        사람을 대상으로 자료를 수집하면 소속 기관의 생명윤리위원회(IRB) 심의 대상입니다. 심의 없이 수집한 자료는 학술지 투고 단계에서 <em>되돌릴 수 없이</em> 막힙니다. 자료 수집 <b>이전에</b> 신청하십시오. 사후 승인은 없습니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>이 슬라이드는 청중이 가장 몰입하는 부분이다. 실제로 겪은 사례를 물어보고 한두 개 공유받은 뒤 넘어가면 좋다. 시간 여유가 없으면 IRB와 위계성 두 가지만 강조한다.</div>
+</section>
+
+<!-- ========== PART 4 ========== -->
+<section class="slide part" data-part="4" data-title="Part 04 · 표본과 표집">
+  <div class="pno">04</div>
+  <h2>표본과 표집</h2>
+  <div class="pen">Sampling</div>
+  <p class="pl">"몇 명을 조사했는가"보다 "누가 빠졌는가"가 결과를 결정합니다. 표집은 통계 이전의 문제이며, 잘못된 표본은 어떤 분석으로도 교정되지 않습니다.</p>
+  <div class="pq"><span class="chip">모집단·표집틀·표본</span><span class="chip">확률/비확률 표집</span><span class="chip">표본 크기</span><span class="chip">무응답 편향</span></div>
+</section>
+
+<section class="slide" data-part="4" data-title="모집단에서 표본까지">
+  <div class="eyebrow">Part 04 · 구조</div>
+  <h2 class="t">오차는 네 번 발생한다</h2>
+  <p class="lead">표본이 모집단을 대표하지 못하게 만드는 지점은 네 곳이며, 각각 다른 처방이 필요합니다.</p>
+  <div class="body">
+    <div class="fig">
+      <svg viewBox="0 0 760 240" role="img" aria-label="모집단에서 표집틀 표본 응답자로 이어지는 오차 발생 지점 도해">
+        <g>
+          <circle cx="110" cy="112" r="82" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+          <text x="110" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">목표 모집단</text>
+          <text x="110" y="126" text-anchor="middle" font-size="11" fill="var(--ink-3)">해군 전 부사관 N=?</text>
+          <circle cx="300" cy="112" r="66" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+          <text x="300" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">표집틀</text>
+          <text x="300" y="126" text-anchor="middle" font-size="11" fill="var(--ink-3)">인사DB 명부</text>
+          <circle cx="470" cy="112" r="48" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+          <text x="470" y="108" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">표본</text>
+          <text x="470" y="126" text-anchor="middle" font-size="11" fill="var(--ink-3)">배포 500</text>
+          <circle cx="620" cy="112" r="36" fill="var(--mag-soft)" stroke="var(--mag)"/>
+          <text x="620" y="108" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">응답자</text>
+          <text x="620" y="126" text-anchor="middle" font-size="11" fill="var(--mag)">n=312</text>
+          <text x="205" y="36" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--crit)" letter-spacing="1">① 커버리지 오차</text>
+          <text x="205" y="52" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">명부에 없는 사람</text>
+          <text x="388" y="36" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--crit)" letter-spacing="1">② 표집 오차</text>
+          <text x="388" y="52" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">우연에 의한 변동</text>
+          <text x="548" y="36" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--crit)" letter-spacing="1">③ 무응답 오차</text>
+          <text x="548" y="52" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">답한 사람만 남음</text>
+          <text x="620" y="182" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--crit)" letter-spacing="1">④ 측정 오차</text>
+          <text x="620" y="198" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">사실과 다르게 답함</text>
+          <path d="M196,112 L230,112" stroke="var(--ink-2)" stroke-width="1.4" marker-end="url(#ar)"/>
+          <path d="M368,112 L418,112" stroke="var(--ink-2)" stroke-width="1.4" marker-end="url(#ar)"/>
+          <path d="M520,112 L582,112" stroke="var(--ink-2)" stroke-width="1.4" marker-end="url(#ar)"/>
+          <path d="M620,150 L620,168" stroke="var(--crit)" stroke-width="1.2" stroke-dasharray="3 2"/>
+        </g>
+      </svg>
+    </div>
+    <div class="g4" style="margin-top:1em">
+      <div class="call warn"><b>① 커버리지</b>파견·교육 중 인원, 신규 전입자가 명부에서 빠지면 그 집단은 처음부터 조사 대상이 아니다.</div>
+      <div class="call warn"><b>② 표집</b>유일하게 <em>공식으로 계산되는</em> 오차. 신뢰구간이 표현하는 것이 바로 이것뿐이다.</div>
+      <div class="call warn"><b>③ 무응답</b>가장 위험하다. 바쁜 부대일수록 응답률이 낮고, 바쁜 부대일수록 소진이 높다.</div>
+      <div class="call warn"><b>④ 측정</b>Part 05의 주제. 문항이 나쁘면 표본이 완벽해도 결과는 틀린다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>"±3.5%p 오차범위"라는 표현이 ②만 반영한다는 점을 짚어주면 청중이 크게 반응한다. 실제 논문 오류의 대부분은 ①③에서 나온다.</div>
+</section>
+
+<section class="slide" data-part="4" data-title="표집 방법">
+  <div class="eyebrow">Part 04 · 방법</div>
+  <h2 class="t">확률표집과 비확률표집</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>확률표집 — 선택 확률을 아는 경우</h4>
+        <div class="tw" style="margin-top:.5em"><table class="tbl">
+          <tr><th>방법</th><th>절차</th><th>군 적용</th></tr>
+          <tr><td>단순무작위</td><td class="w">명부에서 난수로 n명 추출</td><td class="w">인사DB 접근 가능 시 최선</td></tr>
+          <tr><td>계통</td><td class="w">난수 시작 후 매 k번째</td><td class="w">명부가 계급순이면 주기성 주의</td></tr>
+          <tr><td>층화</td><td class="w">계급·직별로 층을 나눠 각 층에서 추출</td><td class="w"><em>가장 권장</em> — 소수 집단 확보</td></tr>
+          <tr><td>집락</td><td class="w">함정·부대 단위로 뽑아 전수조사</td><td class="w">현실적이나 위계 구조 발생</td></tr>
+        </table></div></div>
+      <div class="call do"><b>층화표집이 군에 잘 맞는 이유</b>
+        해군 인력은 계급·직별·근무형태(함정/육상)로 구조가 명확합니다. 각 층의 모집단 비율을 알면 <em>비례배분</em>으로 대표성을 확보할 수 있고, 여군처럼 비율이 작은 집단은 <em>과대배분 후 가중치</em>로 분석 가능한 사례수를 확보할 수 있습니다.</div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>비확률표집 — 선택 확률을 모르는 경우</h4>
+        <div class="tw" style="margin-top:.5em"><table class="tbl">
+          <tr><th>방법</th><th>절차</th><th>정당한 사용</th></tr>
+          <tr><td>편의</td><td class="w">접근 가능한 사람을 조사</td><td class="w">예비조사, 도구 검토</td></tr>
+          <tr><td>목적</td><td class="w">기준에 맞는 사람을 의도적으로 선정</td><td class="w">질적 연구, 델파이 패널</td></tr>
+          <tr><td>할당</td><td class="w">집단별 목표 인원을 채움</td><td class="w">층 구조를 알지만 명부가 없을 때</td></tr>
+          <tr><td>눈덩이</td><td class="w">참여자가 다음 참여자를 소개</td><td class="w">접근이 어려운 소수 집단</td></tr>
+        </table></div></div>
+      <div class="call warn"><b>정직하게 쓰는 법</b>
+        석사 논문의 상당수는 사실상 편의표집입니다. 그것 자체는 결격 사유가 아닙니다. <em>편의표집을 확률표집인 것처럼 쓰는 것</em>이 문제입니다.<br><br>
+        <b>× "해군 부사관을 무작위로 표집하였다"</b> (난수를 쓰지 않았다면 거짓)<br>
+        <b>○ "연구자가 접근 가능한 3개 전단 소속 부사관을 대상으로 편의표집하였다. 따라서 결과를 해군 전체로 일반화하는 데에는 신중을 요한다."</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="4" data-title="표본 크기">
+  <div class="eyebrow">Part 04 · 규모</div>
+  <h2 class="t">"몇 명이면 됩니까?" — 근거 있게 답하는 법</h2>
+  <p class="lead">정답은 "분석하려는 기법과 기대 효과크기에 달려 있다"입니다. 심사에서 "왜 300명입니까"라고 물었을 때 <em>검정력 분석 결과</em>를 제시할 수 있어야 합니다.</p>
+  <div class="body g21">
+    <div>
+      <div class="tw"><table class="tbl">
+        <tr><th>분석</th><th>작은 효과<br>(f²=.02 / d=.2)</th><th>중간 효과<br>(f²=.15 / d=.5)</th><th>큰 효과<br>(f²=.35 / d=.8)</th></tr>
+        <tr><td>독립표본 t검정<br><span class="mono" style="font-weight:400">(집단당)</span></td><td class="num">394</td><td class="num">64</td><td class="num">26</td></tr>
+        <tr><td>상관분석</td><td class="num">783 <span class="mono">(r=.1)</span></td><td class="num">85 <span class="mono">(r=.3)</span></td><td class="num">29 <span class="mono">(r=.5)</span></td></tr>
+        <tr><td>다중회귀<br><span class="mono" style="font-weight:400">예측변수 5개</span></td><td class="num">647</td><td class="num">92</td><td class="num">43</td></tr>
+        <tr><td>일원분산분석<br><span class="mono" style="font-weight:400">집단 4개</span></td><td class="num">1,096</td><td class="num">180</td><td class="num">76</td></tr>
+        <tr><td>구조방정식</td><td colspan="3" class="w">경험칙: 추정 모수 1개당 10~20명, 최소 200명</td></tr>
+        <tr><td>탐색적 요인분석</td><td colspan="3" class="w">경험칙: 문항 1개당 5~10명, 최소 200~300명</td></tr>
+      </table></div>
+      <div class="figcap">α=.05, 검정력(1−β)=.80, 양측 기준 · G*Power 3.1 산출값</div>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>계산에 필요한 네 값</b>
+        ① 유의수준 α = .05 (관례)<br>② 검정력 1−β = .80 이상 (관례, 사회과학)<br>③ 기대 효과크기 — <em>선행연구에서 가져옵니다</em><br>④ 분석 기법과 예측변수 수<br><br>이 중 ③이 핵심입니다. 유사 선행연구의 β 또는 r 값을 근거로 제시하면 "왜 중간 효과를 가정했는가"에 답할 수 있습니다.</div>
+      <div class="call do"><b>실무 절차</b>
+        ① G*Power(무료)로 필요 표본 n 산출<br>② 예상 회수율로 나눔 — 군 온라인 조사는 <b>30~50%</b>가 현실적<br>③ 불성실 응답 제거분 <b>10%</b> 추가<br><br><span class="mono">필요 312명 ÷ 0.40 = 780부 배포 → 여유분 포함 850부</span></div>
+      <div class="call warn"><b>반대 방향의 함정</b>
+        표본이 지나치게 크면 <em>실질적으로 무의미한 차이도 통계적으로 유의</em>해집니다. n=5,000이면 r=.03도 p&lt;.05입니다. 그래서 효과크기를 반드시 함께 보고해야 합니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="4" data-title="무응답 편향">
+  <div class="eyebrow">Part 04 · 편향</div>
+  <h2 class="t">답하지 않은 사람이 결론을 바꾼다</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card key"><h4>왜 위험한가</h4>
+        <p>무응답이 <b>무작위로</b> 발생하면 표본만 줄어들 뿐 편향은 없습니다. 문제는 무응답이 <em>연구 변수와 상관</em>될 때입니다.</p>
+        <p style="margin-top:.5em"><b>전형적 시나리오</b> 소진이 극심한 인원 → 설문 참여할 여력 없음 → 응답자에서 빠짐 → <b>소진 수준이 과소 추정</b> → "생각보다 양호하다"는 잘못된 결론.</p></div>
+      <div class="card"><h4>진단하는 세 가지 방법</h4>
+        <ol class="d">
+          <li><b>응답자 vs 모집단 비교</b> — 계급·직별·연령 분포를 인사통계와 대조하고 논문에 표로 제시</li>
+          <li><b>조기응답 vs 후기응답 비교</b> — 마감 직전 응답자는 무응답자와 유사하다고 가정. 두 집단의 주요 변수 평균을 t검정으로 비교</li>
+          <li><b>무응답자 추적 조사</b> — 무응답자 중 소수(30~50명)에게 축약본 조사</li>
+        </ol></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>회수율을 올리는 실무 수단</h4>
+        <ul class="d">
+          <li><b>길이</b> — 10분 이내. 20분 넘으면 이탈률이 급증합니다</li>
+          <li><b>시점</b> — 훈련·검열 기간, 인사이동 시기 회피</li>
+          <li><b>모바일</b> — 함정 승조원은 PC 접근이 제한됩니다. 반드시 모바일 우선 설계</li>
+          <li><b>진행 표시</b> — 남은 분량이 보이면 완료율이 오릅니다</li>
+          <li><b>1회 상기</b> — 1주 후 리마인더 1회. 그 이상은 강압으로 인식됩니다</li>
+          <li><b>결과 환류 약속</b> — "결과 요약을 부대에 공유하겠다"는 실제로 효과가 있습니다</li>
+        </ul></div>
+      <div class="call do"><b>논문에 반드시 쓸 문장</b>
+        "총 850부를 배포하여 <b>376부가 회수되었고(회수율 44.2%)</b>, 불성실 응답 <b>28부를 제외한 348부</b>를 최종 분석에 사용하였다. 응답자의 계급 분포는 2025년 해군 인사통계와 비교 시 중사 계급이 <b>4.1%p 과대표집</b>되었으나 카이제곱 검정 결과 유의한 차이는 없었다(χ²=5.31, p=.15)."</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PART 5 ========== -->
+<section class="slide part" data-part="5" data-title="Part 05 · 측정과 설문개발">
+  <div class="pno">05</div>
+  <h2>측정과 설문개발</h2>
+  <div class="pen">Measurement &amp; Instrument Design</div>
+  <p class="pl">설문지는 자료 수집 도구가 아니라 <em>측정 기기</em>입니다. 눈금이 어긋난 기기로 잰 값은 아무리 많이 모아도 정확해지지 않습니다.</p>
+  <div class="pq"><span class="chip">측정수준</span><span class="chip">리커트 설계</span><span class="chip">신뢰도·타당도</span><span class="chip m">DRM6 사례</span></div>
+</section>
+
+<section class="slide" data-part="5" data-title="측정수준">
+  <div class="eyebrow">Part 05 · 기초</div>
+  <h2 class="t">측정수준이 분석 가능한 범위를 정한다</h2>
+  <p class="lead">설문 문항을 만드는 순간 분석 기법이 결정됩니다. 나중에 "평균을 내고 싶은데 안 되네"를 겪지 않으려면 <em>설계 시점에</em> 정해야 합니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>수준</th><th>성질</th><th>예시</th><th>가능한 통계</th><th>가능한 분석</th></tr>
+      <tr><td>명목</td><td class="w">구분만 가능. 순서 없음</td><td class="w">직별, 근무형태(함정/육상), 성별</td><td class="w">빈도, 최빈값</td><td class="w">교차분석(χ²), 로지스틱회귀</td></tr>
+      <tr><td>서열</td><td class="w">순서 있으나 간격이 불균등</td><td class="w">계급, 학력, 만족도 3단계</td><td class="w">중앙값, 백분위</td><td class="w">비모수 검정, 순서형 로짓</td></tr>
+      <tr><td>등간</td><td class="w">간격 균등. 절대영점 없음</td><td class="w">리커트 합산점수, 표준점수</td><td class="w">평균, 표준편차</td><td class="w">t검정, ANOVA, 회귀, 요인분석</td></tr>
+      <tr><td>비율</td><td class="w">간격 균등 + 절대영점</td><td class="w">연간 항해일수, 근속연수, 나이</td><td class="w">모든 통계 + 비율 계산</td><td class="w">모든 모수 분석</td></tr>
+    </table></div>
+    <div class="g2" style="margin-top:1.1em">
+      <div class="call def"><b>리커트는 서열인가 등간인가</b>
+        엄밀히는 서열입니다. 그러나 <em>여러 문항을 합산 또는 평균한 점수</em>는 관례적으로 등간으로 취급하며, 사회과학에서 널리 수용됩니다. 다만 <b>단일 문항</b>을 등간처럼 다루는 것은 근거가 약합니다. 하나의 개념은 최소 3문항 이상으로 재십시오.</div>
+      <div class="call do"><b>수집 단계의 원칙</b>
+        가능하면 <em>가장 높은 수준으로 수집</em>하십시오. 나이를 "20대/30대"로 받으면 영원히 서열이지만, 연도로 받으면 나중에 얼마든지 범주화할 수 있습니다. <b>정보는 내려갈 수만 있고 올라갈 수 없습니다.</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="리커트 척도 설계">
+  <div class="eyebrow">Part 05 · 척도</div>
+  <h2 class="t">리커트 척도, 네 가지 설계 결정</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>1 · 몇 점 척도인가</h4>
+        <p><b>5점</b> 응답 부담 낮음, 일반 대중 조사에 적합<br><b>7점</b> 변별력·신뢰도 높음, 학술 연구의 표준<br><b>4·6점</b> 중립 회피를 강제. 응답자 반발 가능<br><b>10·11점</b> 단일 문항 지표(NPS 등)에 적합</p>
+        <p style="margin-top:.5em"><b>권고</b> 기존 척도를 쓴다면 <em>원 척도의 점수 체계를 바꾸지 마십시오.</em> 7점을 5점으로 줄이는 순간 원 도구의 신뢰도·타당도 근거를 잃습니다.</p></div>
+      <div class="card"><h4>2 · 중간점을 둘 것인가</h4>
+        <p>중간점이 있으면 <b>무의견</b>과 <b>진짜 중립</b>이 섞이고, 없으면 응답자를 강제로 한쪽에 세웁니다.<br>학술 연구에서는 보통 <em>중간점을 둡니다.</em> 다만 "모르겠다"를 별도 보기로 분리하면 두 문제를 동시에 해결할 수 있습니다.</p></div>
+      <div class="card"><h4>3 · 모든 점에 라벨을 붙일 것인가</h4>
+        <p>양 끝만 라벨링(anchor only)보다 <b>전 점 라벨링</b>이 신뢰도가 높습니다.<br><span class="mono" style="color:var(--ink-3)">전혀 그렇지 않다 · 그렇지 않다 · 약간 그렇지 않다 · 보통이다 · 약간 그렇다 · 그렇다 · 매우 그렇다</span></p></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>4 · 역문항을 넣을 것인가</h4>
+        <p><b>찬성</b> 무성의한 일괄응답(straight-lining)을 탐지할 수 있습니다.<br><b>반대</b> 역문항은 요인분석에서 별도 요인으로 잘못 묶이는 인공물을 자주 만듭니다.</p>
+        <p style="margin-top:.5em"><b>권고</b> 역문항 대신 <em>주의점검 문항</em>을 1~2개 넣으십시오. "이 문항은 3번에 표시해 주십시오." 훨씬 깨끗하게 걸러집니다.</p></div>
+      <div class="call warn"><b>역채점을 잊지 마십시오</b>
+        역문항을 넣었다면 분석 전 반드시 역채점합니다. <span class="mono">(척도최대값 + 1) − 원점수</span>. 7점 척도의 5점 → 3점. <em>이 처리를 빠뜨려 신뢰도가 α=.42로 나오는 사고가 매년 반복됩니다.</em></div>
+      <div class="call do"><b>척도 방향 통일</b>
+        한 설문 안에서 "1=전혀 아니다"와 "1=매우 그렇다"가 섞이면 응답자도 연구자도 반드시 실수합니다. <b>전 문항 동일 방향</b>으로 고정하십시오.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="나쁜 문항 진단">
+  <div class="eyebrow">Part 05 · 문항</div>
+  <h2 class="t">고장난 문항 여덟 가지</h2>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>진단명</th><th class="w">× 문제 문항</th><th class="w">○ 교정</th></tr>
+      <tr><td>이중질문<br><span class="mono" style="font-weight:400">double-barreled</span></td><td class="w">나는 상관의 지시가 <b>명확하고 공정</b>하다고 느낀다</td><td class="w">두 문항으로 분리: ① 지시가 명확하다 ② 지시가 공정하다</td></tr>
+      <tr><td>유도질문</td><td class="w">과중한 당직 부담이 사기를 떨어뜨린다고 생각하십니까?</td><td class="w">현재 당직 주기가 본인의 사기에 미치는 영향은? (매우 부정적 ↔ 매우 긍정적)</td></tr>
+      <tr><td>이중부정</td><td class="w">나는 부대 정책에 <b>동의하지 않는 것은 아니다</b></td><td class="w">나는 부대 정책에 동의한다</td></tr>
+      <tr><td>전문용어</td><td class="w">귀하의 조직시민행동 수준은?</td><td class="w">나는 내 담당이 아닌 일도 필요하면 돕는다</td></tr>
+      <tr><td>모호한 수량</td><td class="w">당직을 <b>자주</b> 서십니까?</td><td class="w">최근 4주간 당직 근무 횟수: ___회</td></tr>
+      <tr><td>기억 부담</td><td class="w">지난 1년간 야간근무 시간 총합은?</td><td class="w">최근 2주간 야간근무 일수 (또는 근무기록 대조)</td></tr>
+      <tr><td>가정 전제</td><td class="w">복지시설 이용에 얼마나 만족하십니까?</td><td class="w">먼저 이용 여부를 묻고, 이용자에게만 만족도 문항 제시(분기)</td></tr>
+      <tr><td>사회적 바람직성</td><td class="w">나는 상관의 부당한 지시에 문제를 제기한다</td><td class="w">3자 상황 제시형으로 전환: "동료가 그러한 상황에 처했을 때 일반적으로 어떻게 하리라고 보십니까?"</td></tr>
+    </table></div>
+    <div class="call do" style="margin-top:1em"><b>자가 점검 3문</b>
+      ① 이 문항에 "네"라고 답한 두 사람이 <em>같은 뜻</em>으로 답했다고 확신할 수 있는가? ② 문항에 &lsquo;그리고&rsquo;·&lsquo;또는&rsquo;이 들어 있는가? ③ 나의 기대가 문항에 드러나 있는가?</div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="신뢰도">
+  <div class="eyebrow">Part 05 · 신뢰도</div>
+  <h2 class="t">신뢰도 — 다시 재도 같은 값이 나오는가</h2>
+  <div class="body g21">
+    <div>
+      <div class="tw"><table class="tbl">
+        <tr><th>종류</th><th>확인하는 것</th><th>지표</th><th>기준</th></tr>
+        <tr><td>내적일관성</td><td class="w">한 개념을 재는 문항들이 서로 일관되는가</td><td class="w">Cronbach's α, McDonald's ω</td><td class="w">.70 이상 수용<br>.80 이상 양호</td></tr>
+        <tr><td>검사-재검사</td><td class="w">시간이 지나도 같은 값이 나오는가</td><td class="w">두 시점 상관계수 r</td><td class="w">.70 이상<br>(2~4주 간격)</td></tr>
+        <tr><td>평정자간</td><td class="w">두 사람이 코딩해도 같은가</td><td class="w">Cohen's κ, ICC</td><td class="w">κ ≥ .61 상당<br>κ ≥ .81 우수</td></tr>
+        <tr><td>반분</td><td class="w">문항을 반으로 갈라도 일치하는가</td><td class="w">Spearman-Brown</td><td class="w">.70 이상</td></tr>
+      </table></div>
+      <div class="call warn" style="margin-top:.9em"><b>α에 대한 세 가지 오해</b>
+        ① <b>α가 높으면 타당하다?</b> 아닙니다. 같은 질문을 말만 바꿔 7번 물으면 α는 .95가 나오지만 아무것도 타당하지 않습니다.<br>
+        ② <b>α가 높을수록 좋다?</b> .95를 넘으면 문항 중복을 의심해야 합니다.<br>
+        ③ <b>α는 문항 수에 영향받지 않는다?</b> 문항이 많을수록 자동으로 올라갑니다. 3문항의 α=.75는 20문항의 α=.85보다 좋은 신호입니다.</div>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>α가 낮게 나왔을 때</b>
+        ① 역채점 누락 확인 (가장 흔한 원인)<br>② 문항-총점 상관이 .30 미만인 문항 확인<br>③ 해당 문항 제거 시 α 상승폭 확인<br>④ 제거는 <b>이론적 근거가 있을 때만</b>. 통계만 보고 지우면 개념의 일부를 잘라내는 것입니다<br>⑤ 제거했다면 논문에 <em>어느 문항을 왜 제거했는지</em> 명시</div>
+      <div class="call do"><b>보고 예시</b>
+        "직무소진 척도의 내적일관성은 정서적 고갈 α=.89, 냉소 α=.84, 효능감 저하 α=.78로 모두 수용 기준(.70)을 상회하였다. 전체 15문항의 α는 .91이었다."</div>
+      <div class="call def"><b>α 대신 ω를 권하는 이유</b>
+        α는 모든 문항이 개념에 동일하게 기여한다는 강한 가정(타우등가성)에 기댑니다. 현실의 척도는 대개 그렇지 않아 α는 신뢰도를 <em>과소추정</em>합니다. 최근 학술지는 <b>McDonald's ω</b>를 함께 요구하는 추세이며, JASP·jamovi(둘 다 무료)에서 클릭 한 번으로 산출됩니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="타당도">
+  <div class="eyebrow">Part 05 · 타당도</div>
+  <h2 class="t">타당도 — 재려던 그것을 쟀는가</h2>
+  <p class="lead">신뢰도는 <em>일관성</em>이고 타당도는 <em>정확성</em>입니다. 눈금이 5kg 어긋난 저울은 몇 번을 재도 같은 값을 주지만(신뢰도 높음), 그 값은 틀렸습니다(타당도 없음).</p>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>내용타당도</h4>
+        <p>문항들이 개념의 <b>전 범위</b>를 빠짐없이 덮는가. 통계가 아니라 <em>전문가 판단</em>으로 확인합니다.</p>
+        <p style="margin-top:.4em"><b>절차</b> 전문가 5~10인에게 각 문항의 적절성을 4점으로 평정 → <b>CVI</b>(내용타당도지수) 산출 → 문항 CVI ≥ .78, 척도 평균 CVI ≥ .90 권장</p></div>
+      <div class="card"><h4>준거타당도</h4>
+        <p>외부의 <b>정답에 가까운 기준</b>과 얼마나 일치하는가.<br>
+        <b>공인타당도</b> 동시점 기준과의 상관 — 소진 점수 ↔ 최근 6개월 병가일수<br>
+        <b>예측타당도</b> 미래 결과 예측력 — 잔류의도 점수 ↔ 1년 뒤 실제 전역 여부</p></div>
+      <div class="card key"><h4>구성타당도</h4>
+        <p>측정치가 이론이 예측하는 방식으로 <b>다른 변수들과 관계 맺는가.</b> 학위논문에서 가장 자주 요구되는 검증입니다.</p>
+        <p style="margin-top:.4em"><b>수렴타당도</b> 비슷한 개념과는 높은 상관 (AVE ≥ .50, CR ≥ .70)<br>
+        <b>판별타당도</b> 다른 개념과는 낮은 상관 (√AVE &gt; 개념 간 상관)</p></div>
+    </div>
+    <div class="stack">
+      <div class="call warn"><b>동일방법편의 (CMB)</b>
+        독립변수와 종속변수를 <em>같은 사람이, 같은 시점에, 같은 형식으로</em> 답하면 실제보다 상관이 부풀려집니다. 횡단 설문 연구의 고질적 약점이며, 심사에서 반드시 나옵니다.
+        <div style="margin-top:.5em"><b>사전 예방</b> IV·DV 문항을 물리적으로 분리 · 척도 형식을 다르게 · 익명성 강조 · 시차를 두고 측정<br>
+        <b>사후 진단</b> Harman 단일요인 검정(첫 요인 설명량 &lt; 50%) · 표지변수법(marker variable)</div></div>
+      <div class="call do"><b>기존 척도를 쓰는 것이 정답인 이유</b>
+        검증된 척도를 쓰면 타당도 논증의 대부분을 선행연구에서 조달할 수 있습니다. 자체 개발 척도를 쓰겠다면 <em>탐색적 요인분석 → 확인적 요인분석 → 신뢰도 → 타당도 검증</em>이라는 별도의 연구가 논문 안에 하나 더 들어갑니다. 석사 과정에서 이는 대개 감당하기 어렵습니다.</div>
+      <div class="call def"><b>번안 절차 (원 척도가 영문일 때)</b>
+        ① 이중언어자 2인이 독립 번역 → ② 합의본 작성 → ③ 원문을 모르는 제3자가 <b>역번역</b> → ④ 원문과 대조하여 의미 이탈 확인 → ⑤ 군 맥락 용어 조정("supervisor" → "직속상관") → ⑥ 예비조사 → ⑦ 원저자 사용 허락 확인</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>구성타당도와 동일방법편의는 심사 단골 질문이다. 여기서 "어떻게 답할 것인가"까지 알려주면 특강의 실용적 가치가 크게 올라간다.</div>
+</section>
+
+<section class="slide" data-part="5" data-title="예비조사">
+  <div class="eyebrow">Part 05 · 검증</div>
+  <h2 class="t">본조사 전에 반드시 하는 두 가지</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card key"><h4>인지면접 — 5~8명, 각 40분</h4>
+        <p>응답자에게 <b>문항을 읽으며 생각하는 것을 소리 내어 말하게</b> 합니다. 통계로는 절대 잡히지 않는 문제가 여기서 잡힙니다.</p>
+        <ul class="d" style="margin-top:.5em">
+          <li>"이 문항은 무슨 뜻이라고 이해하셨습니까?"</li>
+          <li>"어떻게 그 답을 고르셨습니까?"</li>
+          <li>"답하기 어려웠던 부분이 있었습니까?"</li>
+        </ul>
+        <p style="margin-top:.5em;color:var(--mag)"><b>실제로 잡히는 것</b> "부대"가 함정을 말하는지 전단을 말하는지 몰랐다 · "상관"이 직속상관인지 함장인지 헷갈렸다 · 최근 4주에 휴가가 끼어 있어 답할 수 없었다</p></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>예비조사 — 30~50명</h4>
+        <ul class="d">
+          <li><b>소요 시간</b> 실제 응답 시간 측정. 목표는 10분 이내</li>
+          <li><b>신뢰도</b> 하위 척도별 α 사전 확인</li>
+          <li><b>천장·바닥 효과</b> 특정 문항에 응답이 한쪽으로 몰리지 않는가</li>
+          <li><b>무응답률</b> 특정 문항에서 유독 빠지는가 → 민감하거나 이해가 어려운 문항</li>
+          <li><b>이탈 지점</b> 온라인이라면 어느 화면에서 중단되는가</li>
+        </ul></div>
+      <div class="call warn"><b>예비조사 표본은 본조사에 포함하지 않습니다</b>
+        예비조사 후 문항을 수정했다면 두 자료는 다른 도구로 잰 것입니다. 수정 없이 그대로 갔다면 포함 가능하지만, 그 사실을 논문에 밝혀야 합니다.</div>
+      <div class="call do"><b>시간 대비 효과가 가장 큰 투자</b>
+        인지면접 5명 × 40분 = 약 3시간. 이 3시간이 본조사 300명분의 자료를 살립니다. 자료를 다 모은 뒤 "이 문항을 다들 다르게 이해했구나"를 깨닫는 것보다 훨씬 쌉니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="사례 · DRM6 ①">
+  <div class="eyebrow">Part 05 · 사례연구 ①</div>
+  <h2 class="t">DRM6 — 기억의 왜곡을 설계로 막은 조사</h2>
+  <p class="lead">본 강의가 예시로 쓰는 <b>DRM6</b>는 고등학생의 하루 경험을 시간대별로 재구성해 정서를 측정하는 실제 운영 중인 조사 시스템입니다. 측정 이론이 설문 화면 하나하나로 번역되는 과정을 보여주는 좋은 표본입니다.</p>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>문제 — 회상 편향</h4>
+        <p>"요즘 학교생활이 얼마나 즐겁습니까?"라고 물으면, 응답자는 실제 경험의 평균이 아니라 <b>가장 강렬했던 순간과 가장 최근의 순간</b>으로 답합니다(정점-종점 규칙). 응답 시점의 기분도 그대로 섞여 들어옵니다.</p>
+        <p style="margin-top:.5em">그래서 총괄적 만족도 문항은 <em>기억된 경험</em>을 잴 뿐 <em>실제 경험</em>을 재지 못합니다.</p></div>
+      <div class="card"><h4>대안 ① 경험표집법 (ESM)</h4>
+        <p>하루 중 무작위 시점에 알림을 보내 "지금 무엇을 하고 있고 어떤 기분인가"를 묻습니다. 왜곡은 가장 적지만 <b>참여 부담이 매우 크고</b> 학교·부대 일과 중 알림 응답이 현실적으로 불가능합니다.</p></div>
+      <div class="card key"><h4>대안 ② 일상재구성법 (DRM)</h4>
+        <p>하루가 끝난 뒤 <b>어제 하루를 시간 순서대로 장면 단위로 복원</b>시킨 다음, 각 장면에 대해 정서를 평정하게 합니다. 순서대로 되짚는 인출 구조가 회상 왜곡을 크게 줄이면서, 1회 설문의 부담으로 실행됩니다.</p>
+        <p style="margin-top:.4em;color:var(--mag)"><b>핵심 통찰</b> 편향을 통계로 사후 보정한 것이 아니라 <em>설문의 진행 순서 자체를 측정 도구로 만든 것</em>입니다.</p></div>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>DRM6의 시간 분할</b>
+        <span class="mono">🌅 오전·점심 (08–13시) → ☀️ 오후 (13–18시) → 🌙 저녁 (18–23시)</span><br>
+        시간대별로 각 1~5개의 활동을 기록하게 하고, 반드시 오전 → 오후 → 저녁 순서로만 진행할 수 있게 했습니다. 아직 방문하지 않은 시간대 탭은 <b>비활성화</b>됩니다.</div>
+      <div class="call case"><b>왜 순서를 강제했는가</b>
+        건너뛰기를 허용하면 응답자는 <em>기억에 남는 시간대부터</em> 채웁니다. 그 순간 DRM은 무너지고 다시 정점-종점 회상이 됩니다. 순차 진행은 사용성 제약이 아니라 <b>측정 타당도를 지키는 장치</b>입니다.</div>
+      <div class="call do"><b>일반화할 교훈</b>
+        좋은 설문 설계에서는 <em>응답 순서·화면 전환·건너뛰기 허용 여부가 모두 측정의 일부</em>입니다. 문항 문구만 다듬고 흐름을 방치하면 도구의 절반만 만든 것입니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>Kahneman et al.(2004) Science 논문이 DRM의 원전. 여기서 "설계로 편향을 막는다"는 아이디어가 청중에게 가장 오래 남는다.</div>
+</section>
+
+<section class="slide" data-part="5" data-title="사례 · DRM6 ②">
+  <div class="eyebrow">Part 05 · 사례연구 ②</div>
+  <h2 class="t">설계 결정 일곱 가지와 그 근거</h2>
+  <p class="lead">모든 설계 결정에는 <em>그렇게 하지 않았을 때 발생할 오차</em>가 대응합니다. 논문의 방법 장은 결국 이 대응표를 문장으로 푼 것입니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>#</th><th>설계 결정</th><th>차단하려는 오차</th><th>대안이었다면</th></tr>
+      <tr><td>1</td><td class="w"><b>시간대 3분할 후 순차 진행</b><br>오전·점심 → 오후 → 저녁, 미방문 탭 비활성화</td><td class="w">정점-종점 회상, 선택적 인출</td><td class="w">"오늘 하루 어땠나요" 단일 문항 → 응답 시점 기분에 오염</td></tr>
+      <tr><td>2</td><td class="w"><b>활동을 5개 필드로 구조화</b><br>일화 · 무슨 시간 · 누구와 · 어디서 · 이유</td><td class="w">맥락 소실. 정서만 남고 <em>왜</em>가 사라짐</td><td class="w">자유서술만 → 코딩 불가, 통계 분석 불가</td></tr>
+      <tr><td>3</td><td class="w"><b>정서 9문항을 각성수준 기준으로 배치</b><br>긍정·부정 각 고/중/저각성 + 의미 3문항</td><td class="w">정서를 좋음/나쁨 1차원으로 뭉개는 오류</td><td class="w">"기분 점수 1~10" → 편안함과 즐거움을 구분 못함</td></tr>
+      <tr><td>4</td><td class="w"><b>정서 평정을 활동 기록 뒤로 분리</b><br>2단계 구조 (활동 전체 → 정서 전체)</td><td class="w">기록하면서 평정하면 일관성 유지 압력이 생김</td><td class="w">활동마다 즉시 평정 → 앞선 응답에 맞추려는 편향</td></tr>
+      <tr><td>5</td><td class="w"><b>휴대폰 번호를 반복측정 ID로 사용</b><br>인적사항은 최초 1회만, 이후 자동 스킵</td><td class="w">반복 참여 시 이탈, 동일인 매칭 실패</td><td class="w">매회 전체 응답 → 2차 참여율 급락</td></tr>
+      <tr><td>6</td><td class="w"><b>날짜·요일을 KST로 서버가 자동 기록</b></td><td class="w">응답자 기입 오류, 시간대 혼선, 요일 효과 분석 불가</td><td class="w">응답자가 날짜 입력 → 오기입 다수</td></tr>
+      <tr><td>7</td><td class="w"><b>제출 성공 확인 후에만 완료 화면 전환</b><br>실패 시 재시도 버튼 제공</td><td class="w">저장 실패를 완료로 오인 → <em>조용한 자료 손실</em></td><td class="w">즉시 완료 화면 → 유실 규모를 아무도 모름</td></tr>
+    </table></div>
+    <div class="call do" style="margin-top:1em"><b>여러분의 조사에 옮길 때</b>
+      이 표의 왼쪽 두 열을 자기 설문에 맞춰 다시 쓰는 것만으로 논문 3장(연구방법)의 &lsquo;측정도구&rsquo; 절이 거의 완성됩니다. 심사위원이 묻는 것은 언제나 <em>"왜 그렇게 하셨습니까"</em>이고, 답은 이 표의 세 번째 열에 있습니다.</div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="사례 · DRM6 ③">
+  <div class="eyebrow">Part 05 · 사례연구 ③</div>
+  <h2 class="t">자료 구조가 분석 단위를 결정한다</h2>
+  <p class="lead">DRM6는 응답을 <b>두 개의 표</b>로 나누어 저장합니다. 이 구조가 곧 <em>분석 가능한 질문의 범위</em>를 정합니다.</p>
+  <div class="body g21">
+    <div class="stack">
+      <div class="card"><h4>Responses — 사람 단위 (wide)</h4>
+        <p class="mono" style="font-size:.78em;color:var(--ink-2);line-height:1.7">Timestamp · RespondentID · PhoneNumber · MorningCount · AfternoonCount · EveningCount · Gender · SchoolLocation · SchoolType · Grade · CareerDecision</p>
+        <p style="margin-top:.4em">응답자 1명 = 1행. 인구통계와 응답 규모.</p></div>
+      <div class="card key"><h4>Activities — 활동 단위 (long)</h4>
+        <p class="mono" style="font-size:.78em;color:var(--ink-2);line-height:1.7">RespondentID · PhoneNumber · Date · DayOfWeek · TimeBlock · ActivityNum · Activity · TimeCategory · Companion · Location · Reason · <span style="color:var(--mag)">EmoJoyful · EmoHappy · EmoComfortable · EmoAnnoyed · EmoNegative · EmoLethargic · EmoMeaningful · EmoValuable · EmoSatisfying</span></p>
+        <p style="margin-top:.4em">활동 1개 = 1행. 한 사람이 하루 9개 활동을 기록하면 9행, 3일 참여하면 27행이 쌓입니다.</p></div>
+      <div class="call warn"><b>흔한 실수</b>
+        Activities 표를 그대로 개인 단위 회귀에 넣으면 <em>같은 사람의 9개 행을 서로 독립인 9명으로 취급</em>하게 됩니다. 표준오차가 과소추정되어 <b>없는 효과가 유의하게 나옵니다.</b></div>
+    </div>
+    <div>
+      <div class="fig">
+        <svg viewBox="0 0 400 300" role="img" aria-label="학생, 측정일, 활동으로 이어지는 3수준 위계자료 구조">
+          <g>
+            <rect x="10" y="10" width="380" height="46" fill="var(--mag-soft)" stroke="var(--mag)"/>
+            <text x="24" y="30" font-family="var(--mono)" font-size="10" fill="var(--mag)" letter-spacing="1.4">LEVEL 3</text>
+            <text x="24" y="47" font-size="13" font-weight="700" fill="var(--ink)">학생 (i) — 성별·학년·진로결정</text>
+            <rect x="34" y="76" width="356" height="46" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+            <text x="48" y="96" font-family="var(--mono)" font-size="10" fill="var(--ink-3)" letter-spacing="1.4">LEVEL 2</text>
+            <text x="48" y="113" font-size="13" font-weight="700" fill="var(--ink)">측정일 (d) — 날짜·요일</text>
+            <rect x="58" y="142" width="332" height="46" fill="var(--paper-3)" stroke="var(--ink-2)"/>
+            <text x="72" y="162" font-family="var(--mono)" font-size="10" fill="var(--ink-3)" letter-spacing="1.4">LEVEL 1</text>
+            <text x="72" y="179" font-size="13" font-weight="700" fill="var(--ink)">활동 (t) — 시간대·동반자·장소</text>
+            <rect x="58" y="208" width="332" height="42" fill="var(--paper-2)" stroke="var(--rule-2)" stroke-dasharray="4 3"/>
+            <text x="72" y="226" font-size="12" fill="var(--ink-2)">종속변수: 활동별 정서 9문항</text>
+            <text x="72" y="242" font-family="var(--mono)" font-size="10.5" fill="var(--ink-3)">1–7점 · 활동마다 반복 측정</text>
+            <path d="M200,56 L200,74" stroke="var(--mag)" stroke-width="1.4" marker-end="url(#ar)"/>
+            <path d="M224,122 L224,140" stroke="var(--mag)" stroke-width="1.4" marker-end="url(#ar)"/>
+            <path d="M224,188 L224,206" stroke="var(--ink-3)" stroke-width="1.2" stroke-dasharray="3 2"/>
+            <text x="200" y="278" text-anchor="middle" font-size="11" fill="var(--ink-3)">활동은 날짜에, 날짜는 학생에 내포(nested)</text>
+          </g>
+        </svg>
+      </div>
+      <div class="call do" style="margin-top:.8em"><b>이 구조가 열어주는 질문</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>수준 1</b> 같은 학생 안에서도 <em>혼자 있을 때보다 친구와 있을 때</em> 정서가 높아지는가 — 개인차가 완전히 통제된 비교</li>
+          <li><b>수준 2</b> 요일에 따라 하루 정서 평균이 다른가</li>
+          <li><b>수준 3</b> 진로를 결정한 학생과 아닌 학생의 차이가 활동 유형에 따라 달라지는가 — 수준 간 상호작용</li>
+        </ul>
+        <p style="margin-top:.5em">단일 시점 설문으로는 첫 번째 질문을 <em>원리적으로</em> 물을 수 없습니다.</p></div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>군 적용 시 완전히 같은 구조가 나온다 — 승조원(3수준) / 근무일(2수준) / 당직·작업 세션(1수준). 다음 슬라이드에서 이 전이를 명시적으로 다룬다.</div>
+</section>
+
+<section class="slide" data-part="5" data-title="사례 · 군 적용">
+  <div class="eyebrow">Part 05 · 전이</div>
+  <h2 class="t">같은 설계를 함정 승조원에게 옮긴다면</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card key"><h4>연구문제</h4>
+        <p>"함정 승조원의 <b>일과 중 정서 경험</b>은 활동 유형(당직·정비·훈련·개인시간)과 동반 상황(혼자·동료·상급자)에 따라 어떻게 달라지며, 그 패턴은 <b>항해 일수가 누적될수록</b> 어떻게 변화하는가?"</p>
+        <p style="margin-top:.5em;color:var(--mag)">단일 시점 만족도 조사로는 접근 불가능하고, 일지형 반복측정으로만 답할 수 있는 질문입니다.</p></div>
+      <div class="tw"><table class="tbl">
+        <tr><th>DRM6</th><th>해군 적용</th></tr>
+        <tr><td>오전/오후/저녁</td><td class="w">당직 주기 기준 3구간(주간·석간·야간)</td></tr>
+        <tr><td>무슨 시간</td><td class="w">활동 유형 — 당직·정비·훈련·식사·개인시간·수면</td></tr>
+        <tr><td>누구와</td><td class="w">혼자 · 동료 · 직속상관 · 부서 전체</td></tr>
+        <tr><td>어디서</td><td class="w">함교 · 기관실 · 침실 · 식당 · 갑판</td></tr>
+        <tr><td>정서 9문항</td><td class="w">동일 유지 (검증된 구조 재사용)</td></tr>
+        <tr><td>휴대폰 ID</td><td class="w">군번 해시 또는 자가생성 코드</td></tr>
+      </table></div>
+    </div>
+    <div class="stack">
+      <div class="call warn"><b>옮길 때 반드시 바뀌어야 하는 것</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>익명성</b> 함정 단위 인원이 적어 부서·직별만으로도 개인이 특정됩니다. 최소 집계 단위를 사전에 정하고 공지해야 합니다</li>
+          <li><b>접속 환경</b> 해상에서 통신이 제한되므로 오프라인 저장 후 입항 시 동기화 또는 지면 병행이 필요합니다</li>
+          <li><b>보안</b> 위치·일정·활동 기록은 그 자체로 민감정보일 수 있습니다. 자유서술을 열어둘지 사전 검토가 필요합니다</li>
+          <li><b>동의</b> 지휘계선을 통한 안내와 자발적 참여를 분리하는 절차 설계</li>
+        </ul></div>
+      <div class="call do"><b>얻게 되는 것</b>
+        개인차(성격·계급·연차)가 <em>구조적으로 통제된</em> 비교가 가능해집니다. "야간 당직이 정서를 떨어뜨린다"를 사람 간 비교가 아니라 <b>같은 사람 안에서</b> 보일 수 있고, 이는 횡단 설문이 결코 도달하지 못하는 수준의 증거입니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="5" data-title="실습 2">
+  <div class="eyebrow">Part 05 · 실습</div>
+  <h2 class="t">실습 2 — 문항 교정 <span class="mono" style="font-size:.5em;color:var(--ink-3)">12분</span></h2>
+  <p class="lead">아래 다섯 문항에는 각각 하나 이상의 결함이 있습니다. <em>진단명을 붙이고</em> 교정본을 쓰십시오. 옆 사람과 교차 검토합니다.</p>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>Q1</h4><p class="q">우리 부대의 복지시설과 교육 프로그램에 만족하십니까?</p></div>
+      <div class="card"><h4>Q2</h4><p class="q">과도한 행정업무가 본연의 임무 수행을 방해한다고 보지 않으십니까?</p></div>
+      <div class="card"><h4>Q3</h4><p class="q">귀하는 최근 스트레스를 자주 느끼십니까? ① 전혀 없음 ② 가끔 ③ 자주 ④ 항상</p></div>
+      <div class="card"><h4>Q4</h4><p class="q">귀하의 조직몰입 수준을 평가해 주십시오. (1–7점)</p></div>
+      <div class="card"><h4>Q5</h4><p class="q">지난 1년간 상관으로부터 부당한 대우를 받은 적이 있습니까? ① 예 ② 아니오</p></div>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>진단 참고 목록</b>
+        이중질문 · 유도질문 · 이중부정 · 전문용어 · 모호한 수량 · 기억 부담 · 가정 전제 · 사회적 바람직성 · 부적절한 응답 범주</div>
+      <div class="call case"><b>해설 (강사 진행 후 공개)</b>
+        <b>Q1</b> 이중질문 — 복지시설과 교육을 분리<br>
+        <b>Q2</b> 유도 + 이중부정 — "행정업무량이 임무 수행에 미치는 영향은?" 양방향 척도로<br>
+        <b>Q3</b> 모호한 수량 + 범주 불균형 — "최근 2주간 스트레스를 느낀 날은 며칠입니까? ___일"<br>
+        <b>Q4</b> 전문용어 — 개념명을 묻지 말고 <em>행동·감정 진술문</em>으로. "나는 이 부대의 문제를 내 문제처럼 느낀다"<br>
+        <b>Q5</b> 기억 부담 + 사회적 바람직성 + 이분 응답 — 기간을 6개월로 줄이고, &lsquo;부당한 대우&rsquo;를 구체적 행동 목록(예: 사적 심부름 지시, 공개적 모욕)으로 분해하여 빈도로 측정</div>
+      <div class="call do"><b>마무리</b>본인 설문 초안이 있다면, 지금 문항 3개만 골라 같은 진단을 적용해 보십시오. 대부분 최소 한 개는 걸립니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>해설은 3분간 조별 토의 후 공개. Q4와 Q5가 가장 논쟁이 많고, 특히 Q5는 군 조사에서 실제로 자주 쓰이는 형식이라 반응이 크다.</div>
+</section>
+
+<!-- ========== PART 6 ========== -->
+<section class="slide part" data-part="6" data-title="Part 06 · 자료분석">
+  <div class="pno">06</div>
+  <h2>자료분석</h2>
+  <div class="pen">Analysis</div>
+  <p class="pl">분석은 연구문제가 정합니다. 기법을 먼저 고르고 거기에 맞는 질문을 만드는 순간, 논문은 방향을 잃습니다.</p>
+  <div class="pq"><span class="chip">기법 매칭</span><span class="chip">p값과 효과크기</span><span class="chip">매개·조절</span><span class="chip">질적 분석</span></div>
+</section>
+
+<section class="slide" data-part="6" data-title="분석 기법 매칭">
+  <div class="eyebrow">Part 06 · 선택</div>
+  <h2 class="t">연구문제 유형별 분석 기법</h2>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>연구문제 형태</th><th>독립변수</th><th>종속변수</th><th>기법</th><th>보고할 값</th></tr>
+      <tr><td>두 집단이 다른가</td><td class="w">범주 2</td><td class="w">연속</td><td class="w">독립표본 t검정</td><td class="w">t, df, p, Cohen's d</td></tr>
+      <tr><td>세 집단 이상 다른가</td><td class="w">범주 3+</td><td class="w">연속</td><td class="w">일원분산분석 + 사후검정</td><td class="w">F, df, p, η², 사후비교</td></tr>
+      <tr><td>사전-사후가 변했는가</td><td class="w">시점 2</td><td class="w">연속</td><td class="w">대응표본 t검정</td><td class="w">t, p, d</td></tr>
+      <tr><td>두 범주가 연관되는가</td><td class="w">범주</td><td class="w">범주</td><td class="w">교차분석 χ²</td><td class="w">χ², df, p, Cramer's V</td></tr>
+      <tr><td>두 변수가 함께 변하는가</td><td class="w">연속</td><td class="w">연속</td><td class="w">Pearson 상관</td><td class="w">r, p, n</td></tr>
+      <tr><td>무엇이 얼마나 예측하는가</td><td class="w">연속·더미</td><td class="w">연속</td><td class="w">다중회귀</td><td class="w">β, t, p, R², ΔR², VIF</td></tr>
+      <tr><td>통제 후에도 효과가 남는가</td><td class="w">단계 투입</td><td class="w">연속</td><td class="w">위계적 회귀</td><td class="w">단계별 R², ΔR², ΔF</td></tr>
+      <tr><td>발생 여부를 예측하는가</td><td class="w">혼합</td><td class="w">이분</td><td class="w">이항 로지스틱회귀</td><td class="w">B, Wald, <em>OR</em>, 95% CI</td></tr>
+      <tr><td>왜 영향을 미치는가 (경로)</td><td class="w">연속</td><td class="w">연속</td><td class="w">매개분석 (부트스트랩)</td><td class="w">간접효과, 부트스트랩 95% CI</td></tr>
+      <tr><td>언제 효과가 커지는가 (조건)</td><td class="w">연속·범주</td><td class="w">연속</td><td class="w">조절분석 (상호작용항)</td><td class="w">상호작용 β, ΔR², 단순기울기</td></tr>
+      <tr><td>여러 문항이 몇 개로 묶이는가</td><td class="w">—</td><td class="w">연속</td><td class="w">요인분석 (EFA/CFA)</td><td class="w">요인적재량, KMO, 적합도지수</td></tr>
+      <tr><td>같은 사람을 반복 측정했다</td><td class="w">혼합</td><td class="w">연속</td><td class="w">다층모형 / 반복측정 ANOVA</td><td class="w">ICC, 고정효과, 무선효과</td></tr>
+    </table></div>
+    <div class="call do" style="margin-top:.9em"><b>사용 순서</b>이 표는 연구문제를 정한 <em>직후</em> 보는 표입니다. 자료를 다 모은 뒤에 보면 이미 늦습니다 — 원하는 기법에 필요한 변수를 수집하지 않았을 수 있습니다.</div>
+  </div>
+</section>
+
+<section class="slide" data-part="6" data-title="분석 순서">
+  <div class="eyebrow">Part 06 · 절차</div>
+  <h2 class="t">자료를 받은 날부터의 순서</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>1 · 정제 (가장 오래 걸림)</h4>
+        <ul class="d">
+          <li>불성실 응답 제거 — 전 문항 동일값, 응답시간 하위 5%, 주의점검 문항 실패</li>
+          <li>결측 확인 — 결측률 5% 미만이면 대개 무시 가능, 그 이상이면 패턴 확인 후 처리 방법 명시</li>
+          <li><b>역채점 처리</b></li>
+          <li>이상치 확인 — 표준화점수 ±3.29 초과, 다변량은 Mahalanobis 거리</li>
+          <li>척도 합산·평균 산출</li>
+        </ul></div>
+      <div class="card"><h4>2 · 기술통계와 정규성</h4>
+        <p>평균·표준편차·왜도·첨도. <b>왜도 |2| 이하, 첨도 |7| 이하</b>면 모수 분석을 대체로 수용합니다.</p>
+        <p style="margin-top:.4em">표본이 크면 Kolmogorov-Smirnov 검정은 사소한 이탈에도 유의하게 나옵니다. <em>검정 결과보다 왜도·첨도와 히스토그램을 보십시오.</em></p></div>
+      <div class="card"><h4>3 · 신뢰도</h4>
+        <p>모든 척도의 α(또는 ω). 여기서 문제가 발견되면 <b>본 분석으로 넘어가지 마십시오.</b></p></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>4 · 상관행렬</h4>
+        <p>모든 주요 변수 간 상관표. 본 분석의 <b>예고편</b>이며, 여기서 안 보이는 관계가 회귀에서 갑자기 나오면 의심해야 합니다.</p>
+        <p style="margin-top:.4em">독립변수 간 상관이 <b>.80을 넘으면 다중공선성</b>을 의심하고 VIF를 확인합니다(VIF &lt; 10, 보수적으로 &lt; 5).</p></div>
+      <div class="card key"><h4>5 · 가설 검정</h4>
+        <p>가설 번호 순서대로. <b>H1부터 차례로</b> 검정하고 결과 장도 같은 순서로 씁니다. 이 대응이 깨지면 독자가 길을 잃습니다.</p></div>
+      <div class="card"><h4>6 · 추가 분석</h4>
+        <p>계급별·직별별 하위집단 분석 등. 반드시 <em>탐색적 분석임을 명시</em>하십시오. 사후에 발견한 것을 원래 가설이었던 것처럼 쓰는 것(HARKing)은 연구부정에 해당합니다.</p></div>
+      <div class="call warn"><b>도구 선택</b>
+        SPSS가 익숙하면 SPSS로 충분합니다. 무료 대안으로 <b>jamovi</b>·<b>JASP</b>가 있고 SPSS와 화면 구성이 유사하며 α와 ω를 함께 산출합니다. 매개·조절은 <b>PROCESS macro</b>(무료, Hayes)가 표준입니다. R은 배울 시간이 있을 때만.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="6" data-title="p값과 효과크기">
+  <div class="eyebrow">Part 06 · 해석</div>
+  <h2 class="t">p &lt; .05가 말해주지 않는 것</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>p값에 대한 다섯 가지 오해</h4>
+        <div class="tw" style="margin-top:.5em"><table class="tbl">
+          <tr><th>오해</th><th>실제</th></tr>
+          <tr><td>가설이 참일 확률</td><td class="w">영가설이 참일 때 이런 자료를 얻을 확률</td></tr>
+          <tr><td>p가 작을수록 효과가 큼</td><td class="w">표본이 크면 사소한 효과도 p가 작아짐</td></tr>
+          <tr><td>p&gt;.05는 효과 없음</td><td class="w">"효과가 없다"가 아니라 "있다고 말할 근거가 부족하다"</td></tr>
+          <tr><td>p=.049와 .051은 질적으로 다름</td><td class="w">.05는 관례적 선일 뿐 자연의 경계가 아님</td></tr>
+          <tr><td>재현하면 또 유의할 것</td><td class="w">p=.05인 결과의 재현 확률은 생각보다 훨씬 낮음</td></tr>
+        </table></div></div>
+      <div class="call warn"><b>다중검정</b>
+        20개 가설을 α=.05로 검정하면 <b>모두 효과가 없어도 평균 1개가 유의하게 나옵니다.</b> 사후비교나 다수의 상관을 볼 때는 Bonferroni(α ÷ 검정 수) 또는 FDR 보정을 적용하고, 적용했다면 반드시 명시하십시오.</div>
+    </div>
+    <div class="stack">
+      <div class="card key"><h4>반드시 함께 보고할 것</h4>
+        <div class="tw" style="margin-top:.5em"><table class="tbl">
+          <tr><th>효과크기</th><th>사용</th><th>작음</th><th>중간</th><th>큼</th></tr>
+          <tr><td>Cohen's d</td><td class="w">평균 차이</td><td class="num">.20</td><td class="num">.50</td><td class="num">.80</td></tr>
+          <tr><td>r</td><td class="w">상관</td><td class="num">.10</td><td class="num">.30</td><td class="num">.50</td></tr>
+          <tr><td>η² / ω²</td><td class="w">분산분석</td><td class="num">.01</td><td class="num">.06</td><td class="num">.14</td></tr>
+          <tr><td>f²</td><td class="w">회귀</td><td class="num">.02</td><td class="num">.15</td><td class="num">.35</td></tr>
+          <tr><td>OR</td><td class="w">로지스틱</td><td class="num">1.5</td><td class="num">2.5</td><td class="num">4.0</td></tr>
+        </table></div>
+        <p style="margin-top:.5em">이 기준값은 <em>관례</em>이지 법칙이 아닙니다. 해당 분야 선행연구의 통상적 효과크기와 비교해 해석하는 것이 더 좋습니다.</p></div>
+      <div class="call do"><b>결과 문장의 표준형</b>
+        "해상근무일수는 직무소진을 유의하게 예측하였다(β=.34, t=4.82, p&lt;.001). 이는 중간 크기의 효과에 해당하며(f²=.16), 해상근무일수 1 표준편차 증가는 소진 점수 0.34 표준편차 상승과 관련되었다."
+        <p style="margin-top:.4em;color:var(--ink-3)">— 통계량 · 유의성 · 효과크기 · <em>실질적 의미의 번역</em>까지 네 요소가 모두 들어 있습니다.</p></div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>"효과크기 없이 p값만 보고한 논문은 심사에서 지적된다"는 점을 강조. 최근 국내 학술지도 대부분 효과크기 보고를 요구한다.</div>
+</section>
+
+<section class="slide" data-part="6" data-title="매개와 조절">
+  <div class="eyebrow">Part 06 · 심화</div>
+  <h2 class="t">매개는 &lsquo;왜&rsquo;, 조절은 &lsquo;언제&rsquo;</h2>
+  <p class="lead">이 둘을 혼동하는 것이 학위논문에서 가장 흔한 개념적 오류입니다. 그림으로 구분하면 결코 헷갈리지 않습니다.</p>
+  <div class="body g2">
+    <div>
+      <div class="fig">
+        <svg viewBox="0 0 400 150" role="img" aria-label="매개 모형: 독립변수에서 매개변수를 거쳐 종속변수로">
+          <g text-anchor="middle" font-size="11">
+            <text x="200" y="16" font-family="var(--mono)" font-size="10" fill="var(--mag)" letter-spacing="1.6">MEDIATION · 매개</text>
+            <rect x="14" y="86" width="94" height="38" fill="var(--paper-3)" stroke="var(--ink-2)"/><text x="61" y="110" fill="var(--ink)" font-weight="700">해상근무일수</text>
+            <rect x="153" y="30" width="94" height="38" fill="var(--mag-soft)" stroke="var(--mag)"/><text x="200" y="54" fill="var(--ink)" font-weight="700">수면의 질</text>
+            <rect x="292" y="86" width="94" height="38" fill="var(--paper-3)" stroke="var(--ink-2)"/><text x="339" y="110" fill="var(--ink)" font-weight="700">직무소진</text>
+            <path d="M108,96 L150,68" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+            <path d="M250,68 L290,96" stroke="var(--mag)" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+            <path d="M108,112 L288,112" stroke="var(--ink-3)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+            <text x="122" y="72" font-family="var(--mono)" font-size="9.5" fill="var(--mag)">a</text>
+            <text x="278" y="72" font-family="var(--mono)" font-size="9.5" fill="var(--mag)">b</text>
+            <text x="200" y="132" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">c′ 직접효과</text>
+          </g>
+        </svg>
+      </div>
+      <div class="call def" style="margin-top:.7em"><b>매개 — 경로를 설명한다</b>
+        "해상근무가 길수록 <em>수면의 질이 나빠지고, 그 결과</em> 소진이 높아진다."<br><br>
+        <b>검정</b> Baron &amp; Kenny의 4단계는 더 이상 표준이 아닙니다. <b>부트스트랩 신뢰구간</b>(PROCESS Model 4, 5,000회 재표집)을 쓰고, <em>간접효과 a×b의 95% CI가 0을 포함하지 않으면</em> 매개가 유의합니다.<br><br>
+        <b>주의</b> 횡단 자료의 매개분석은 <em>시간적 선행을 가정</em>할 뿐 증명하지 않습니다. 한계에 반드시 명시하십시오.</div>
+    </div>
+    <div>
+      <div class="fig">
+        <svg viewBox="0 0 400 150" role="img" aria-label="조절 모형: 조절변수가 독립변수와 종속변수 관계에 개입">
+          <g text-anchor="middle" font-size="11">
+            <text x="200" y="16" font-family="var(--mono)" font-size="10" fill="var(--mag)" letter-spacing="1.6">MODERATION · 조절</text>
+            <rect x="14" y="52" width="94" height="38" fill="var(--paper-3)" stroke="var(--ink-2)"/><text x="61" y="76" fill="var(--ink)" font-weight="700">해상근무일수</text>
+            <rect x="292" y="52" width="94" height="38" fill="var(--paper-3)" stroke="var(--ink-2)"/><text x="339" y="76" fill="var(--ink)" font-weight="700">직무소진</text>
+            <rect x="153" y="110" width="94" height="34" fill="var(--mag-soft)" stroke="var(--mag)"/><text x="200" y="132" fill="var(--ink)" font-weight="700">부대 응집력</text>
+            <path d="M110,71 L288,71" stroke="var(--ink-2)" stroke-width="1.5" marker-end="url(#ar)"/>
+            <path d="M200,108 L200,74" stroke="var(--mag)" stroke-width="1.6" marker-end="url(#ar)"/>
+            <circle cx="200" cy="71" r="5" fill="none" stroke="var(--mag)" stroke-width="1.4"/>
+          </g>
+        </svg>
+      </div>
+      <div class="call def" style="margin-top:.7em"><b>조절 — 조건을 특정한다</b>
+        "해상근무가 소진을 높이는 정도는 <em>응집력이 낮은 부대에서 더 크다.</em>"<br><br>
+        <b>검정</b> 두 변수를 <b>평균중심화</b>한 뒤 상호작용항(X×Mo)을 회귀에 투입. 상호작용항이 유의하면 <b>단순기울기 분석</b>으로 조절변수 ±1SD 지점의 기울기를 각각 보고하고 <em>반드시 그래프로 제시</em>합니다.<br><br>
+        <b>주의</b> 상호작용 효과는 검정력이 낮아 표본이 부족하면 잡히지 않습니다. 조절 가설이 있다면 표본 크기를 넉넉히 잡으십시오.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="6" data-title="질적 자료 분석">
+  <div class="eyebrow">Part 06 · 질적</div>
+  <h2 class="t">질적 자료도 절차가 있다</h2>
+  <p class="lead">"면담하고 느낀 점을 정리했다"는 분석이 아닙니다. 질적 연구의 엄밀성은 <em>추적 가능한 절차</em>에서 나옵니다.</p>
+  <div class="body g21">
+    <div>
+      <div class="tw"><table class="tbl">
+        <tr><th>단계</th><th>작업</th><th>산출물</th></tr>
+        <tr><td>1 · 전사</td><td class="w">녹음을 축어록으로. 발화 그대로, 침묵·웃음도 표기</td><td class="w">전사본 (1시간 면담 ≈ 4~6시간 소요)</td></tr>
+        <tr><td>2 · 친숙화</td><td class="w">전체를 여러 번 읽으며 메모</td><td class="w">초기 인상 메모</td></tr>
+        <tr><td>3 · 개방코딩</td><td class="w">의미 단위마다 이름 붙이기</td><td class="w">코드 목록 (보통 50~150개)</td></tr>
+        <tr><td>4 · 범주화</td><td class="w">유사 코드를 묶어 상위 범주 구성</td><td class="w">범주 체계 (10~20개)</td></tr>
+        <tr><td>5 · 주제 도출</td><td class="w">범주를 관통하는 주제 규명</td><td class="w">주제 3~6개</td></tr>
+        <tr><td>6 · 검증</td><td class="w">원자료로 돌아가 주제 확인</td><td class="w">수정된 주제 + 대표 인용문</td></tr>
+      </table></div>
+      <div class="call do" style="margin-top:.9em"><b>포화 (saturation)</b>
+        새로운 면담에서 <em>새 코드가 더 이상 나오지 않는 지점</em>까지 자료를 수집합니다. 통상 개인 심층면담은 12~20명, 초점집단은 4~6개 집단에서 포화에 이릅니다. <b>"포화에 도달했다"고 쓰려면 어느 시점부터 새 코드가 나오지 않았는지를 근거로 제시</b>해야 합니다.</div>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>신뢰성 확보 장치 (Lincoln &amp; Guba)</b>
+        <b>신빙성</b> 삼각검증, 참여자 확인(member checking), 동료 검토<br>
+        <b>전이가능성</b> 맥락의 두터운 기술(thick description)<br>
+        <b>의존가능성</b> 감사 추적(audit trail) — 결정의 기록<br>
+        <b>확증가능성</b> 연구자 성찰일지, 원자료 보존</div>
+      <div class="call warn"><b>군 연구에서 특히 주의할 점</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>연구자의 계급</b>이 면담에 영향을 줍니다. 소령이 하사를 면담하면 나오는 이야기와 안 나오는 이야기가 정해집니다. 이 위치성(positionality)을 논문에 명시하십시오</li>
+          <li><b>인용문의 익명화</b> — 직책·함정명·사건이 함께 나오면 개인이 특정됩니다. 인용문은 반드시 탈식별화 처리</li>
+          <li><b>녹음 동의</b>와 보관·파기 절차를 사전에 문서화</li>
+        </ul></div>
+      <div class="call do"><b>코딩 신뢰도</b>제2 코더가 전체의 20~30%를 독립 코딩하고 <b>Cohen's κ</b>를 산출합니다. κ ≥ .80이면 양호하며, 불일치 항목은 합의 과정을 거쳐 조정하고 그 과정을 기술합니다.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== PART 7 ========== -->
+<section class="slide part" data-part="7" data-title="Part 07 · 논문작성">
+  <div class="pno">07</div>
+  <h2>논문작성</h2>
+  <div class="pen">Writing the Thesis</div>
+  <p class="pl">논문은 보고서가 아니라 <em>하나의 논증</em>입니다. 각 장은 그 논증을 이루는 부품이며, 부품이 어긋나면 아무리 문장이 좋아도 설득되지 않습니다.</p>
+  <div class="pq"><span class="chip">모래시계 구조</span><span class="chip">장별 서술 전략</span><span class="chip">표와 그림</span><span class="chip">인용과 윤리</span></div>
+</section>
+
+<section class="slide" data-part="7" data-title="논문의 구조">
+  <div class="eyebrow">Part 07 · 구조</div>
+  <h2 class="t">논문은 모래시계 모양이다</h2>
+  <p class="lead">넓게 시작해 <em>내 연구</em>에서 가장 좁아지고, 다시 넓게 끝납니다. 이 형태에서 벗어나면 독자는 어디에 서 있는지 알 수 없게 됩니다.</p>
+  <div class="body g12">
+    <div>
+      <div class="fig">
+        <svg viewBox="0 0 250 380" role="img" aria-label="논문의 모래시계 구조 도해">
+          <g font-size="11">
+            <path d="M18,14 L232,14 L146,178 L146,202 L232,366 L18,366 L104,202 L104,178 Z"
+                  fill="var(--mag-soft)" stroke="var(--mag-line)"/>
+            <line x1="18" y1="62" x2="232" y2="62" stroke="var(--rule-2)" stroke-dasharray="3 3"/>
+            <line x1="42" y1="110" x2="208" y2="110" stroke="var(--rule-2)" stroke-dasharray="3 3"/>
+            <line x1="104" y1="190" x2="146" y2="190" stroke="var(--mag)" stroke-width="1.5"/>
+            <line x1="42" y1="270" x2="208" y2="270" stroke="var(--rule-2)" stroke-dasharray="3 3"/>
+            <line x1="18" y1="318" x2="232" y2="318" stroke="var(--rule-2)" stroke-dasharray="3 3"/>
+            <text x="125" y="40" text-anchor="middle" font-weight="700" fill="var(--ink)">1장 서론</text>
+            <text x="125" y="88" text-anchor="middle" font-weight="700" fill="var(--ink)">2장 이론적 배경</text>
+            <text x="125" y="150" text-anchor="middle" font-weight="700" fill="var(--ink)">3장 연구방법</text>
+            <text x="125" y="197" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="var(--mag)" letter-spacing="1">4장 결과</text>
+            <text x="125" y="248" text-anchor="middle" font-weight="700" fill="var(--ink)">5장 논의</text>
+            <text x="125" y="298" text-anchor="middle" font-weight="700" fill="var(--ink)">결론 · 제언</text>
+            <text x="125" y="344" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">함의 · 한계 · 후속연구</text>
+          </g>
+        </svg>
+      </div>
+      <div class="figcap">가장 좁은 지점 = 내 자료가 말하는 것. 그 위아래는 맥락</div>
+    </div>
+    <div>
+      <div class="tw"><table class="tbl">
+        <tr><th>장</th><th>이 장이 답하는 질문</th><th>분량 비중</th></tr>
+        <tr><td>1 서론</td><td class="w">왜 이 연구가 필요한가? 무엇을 밝히려 하는가?</td><td class="num">10%</td></tr>
+        <tr><td>2 이론적 배경</td><td class="w">지금까지 무엇이 밝혀졌고 무엇이 남았는가?</td><td class="num">25%</td></tr>
+        <tr><td>3 연구방법</td><td class="w">어떻게 알아냈는가? 남이 따라 할 수 있는가?</td><td class="num">20%</td></tr>
+        <tr><td>4 연구결과</td><td class="w">자료가 무엇을 보여주는가? <em>(해석 없이)</em></td><td class="num">25%</td></tr>
+        <tr><td>5 논의·결론</td><td class="w">그것이 무슨 의미인가? 그래서 무엇을 해야 하는가?</td><td class="num">20%</td></tr>
+      </table></div>
+      <div class="call do" style="margin-top:.9em"><b>결과와 논의를 섞지 마십시오</b>
+        4장에서는 "무엇이 나왔는가"만, 5장에서 "왜 그런가"를 씁니다. 이 분리가 지켜지지 않으면 <em>독자는 어디까지가 자료이고 어디부터가 연구자의 추측인지 알 수 없게 됩니다.</em> 심사에서 가장 자주 지적되는 구조적 문제입니다.</div>
+      <div class="call warn"><b>쓰는 순서는 읽는 순서와 다릅니다</b>
+        권장 집필 순서: <span class="mono">3장 방법 → 4장 결과 → 2장 이론 → 5장 논의 → 1장 서론 → 초록</span><br>
+        서론을 맨 먼저 쓰면 반드시 다시 씁니다. 결과가 나온 뒤에야 "무엇을 밝힌 연구인지" 정확히 쓸 수 있기 때문입니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>집필 순서는 실무적으로 가장 도움이 되는 조언 중 하나다. 서론부터 쓰다가 몇 달을 허비하는 사례가 매우 흔하다.</div>
+</section>
+
+<section class="slide" data-part="7" data-title="서론 쓰기">
+  <div class="eyebrow">Part 07 · 1장</div>
+  <h2 class="t">서론 — 네 문단으로 좁혀 들어간다</h2>
+  <div class="body g21">
+    <div class="stack">
+      <div class="card"><span class="tag">문단 1</span><h4>현상 · 중요성</h4>
+        <p>누구나 인정하는 사실에서 출발합니다. 통계·정책·현안으로 <b>이 문제가 실재함</b>을 보입니다.</p>
+        <p class="mono" style="margin-top:.4em;font-size:.82em;color:var(--ink-3)">"해군은 함정 승조원의 장기 해상근무에 따른 인력 유지 문제에 직면해 있다. 2024년 해군 부사관 중도 전역률은 ○%로…"</p></div>
+      <div class="card"><span class="tag">문단 2</span><h4>선행연구가 밝힌 것</h4>
+        <p>기존 연구의 <b>성과</b>를 인정합니다. 여기서 인색하면 다음 문단의 공백 주장이 설득력을 잃습니다.</p>
+        <p class="mono" style="margin-top:.4em;font-size:.82em;color:var(--ink-3)">"근무 강도가 소진을 높인다는 점은 여러 연구에서 일관되게 확인되었다(김, 2021; Park, 2019)."</p></div>
+      <div class="card key"><span class="tag">문단 3</span><h4>그러나 — 공백</h4>
+        <p>연구 전체가 서 있는 <b>단 하나의 문단</b>입니다. "그럼에도 불구하고", "그러나 ~은 검토되지 않았다"로 전환합니다.</p>
+        <p class="mono" style="margin-top:.4em;font-size:.82em;color:var(--ink-3)">"그러나 이러한 연구들은 이탈이 불가능한 폐쇄 환경이라는 함정 근무의 특수성을 반영하지 못하였다."</p></div>
+      <div class="card"><span class="tag">문단 4</span><h4>따라서 — 목적과 문제</h4>
+        <p>연구 목적을 선언하고 <b>연구문제를 번호 붙여</b> 제시합니다. 필요하면 기대효과까지.</p></div>
+    </div>
+    <div class="stack">
+      <div class="call warn"><b>서론에서 흔히 나오는 문제</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>장황한 배경</b> — 해군의 역사부터 시작하는 서론. 3페이지를 읽어도 무엇을 연구하는지 모릅니다</li>
+          <li><b>공백 문단 부재</b> — 선행연구를 소개만 하고 "그래서 무엇이 없는가"를 말하지 않습니다</li>
+          <li><b>목적과 문제의 불일치</b> — 목적은 "실태 파악"인데 연구문제는 인과관계를 묻습니다</li>
+          <li><b>2장의 선점</b> — 서론에서 이론을 다 설명해버려 2장이 반복이 됩니다</li>
+        </ul></div>
+      <div class="call do"><b>분량 기준</b>
+        석사 논문 서론은 <b>3~5페이지</b>가 적절합니다. 그 이상이면 2장으로 옮겨야 할 내용이 섞인 것입니다.</div>
+      <div class="call def"><b>연구문제 제시 형식</b>
+        <span class="mono" style="font-size:.9em">연구문제 1. 해상근무일수는 직무소진에 영향을 미치는가?<br>연구문제 2. 그 영향은 부대 응집력에 의해 조절되는가?</span><br><br>
+        번호를 붙인 이 문장들이 <em>4장 결과의 소제목과 정확히 일치</em>해야 합니다. 이 대응이 논문의 뼈대입니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="연구방법 쓰기">
+  <div class="eyebrow">Part 07 · 3장</div>
+  <h2 class="t">연구방법 — 재현 가능성이 유일한 기준</h2>
+  <p class="lead">3장을 판정하는 질문은 하나입니다. <em>"이것만 읽고 다른 사람이 똑같이 다시 할 수 있는가?"</em></p>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>3.1 연구대상</h4>
+        <ul class="d">
+          <li>모집단 정의와 규모</li>
+          <li>표집 방법 — <em>실제로 한 방법</em></li>
+          <li>배포·회수 시기와 경로</li>
+          <li>배포 수 · 회수 수 · 회수율 · 제외 사례와 사유 · 최종 n</li>
+          <li>인구통계 특성 표 (계급·직별·연령·근속)</li>
+          <li>표본 크기의 근거 (검정력 분석)</li>
+        </ul></div>
+      <div class="card"><h4>3.2 측정도구</h4>
+        <p>척도마다 다음을 <b>빠짐없이</b>:</p>
+        <ul class="d" style="margin-top:.3em">
+          <li>원 개발자와 연도, 국내 번안자</li>
+          <li>하위요인 구성과 문항 수</li>
+          <li>응답 척도 (몇 점, 양극 라벨)</li>
+          <li>점수 산출 방식 (합산/평균), 역문항 유무</li>
+          <li>점수 해석 방향 ("높을수록 ~")</li>
+          <li>선행연구의 α와 <b>본 연구의 α</b></li>
+          <li>예시 문항 1개</li>
+        </ul></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>3.3 연구절차</h4>
+        <p>IRB 승인 번호 · 동의 취득 방식 · 조사 기간 · 조사 방식(온라인/지면) · 소요 시간 · 익명성 보장 조치 · 자료 보관 및 파기 계획</p></div>
+      <div class="card key"><h4>3.4 자료분석</h4>
+        <p>사용 프로그램과 <b>버전</b>(SPSS 29.0, PROCESS macro v4.2 등) · 연구문제별 분석 기법 · 유의수준 · 결측치 처리 방법 · 효과크기 지표</p></div>
+      <div class="call do"><b>3장을 쉽게 쓰는 법</b>
+        <em>자료를 수집하는 동안 실시간으로 쓰십시오.</em> 배포 날짜, 회수 경로, 제외한 응답과 그 사유는 그때 적어두지 않으면 6개월 뒤에 절대 기억나지 않습니다. 연구노트 한 권이 3장 전체를 대신합니다.</div>
+      <div class="call warn"><b>과거 시제로 씁니다</b>
+        "~할 것이다"가 아니라 "~하였다". 연구계획서를 그대로 붙여넣어 미래 시제가 남아 있는 논문이 의외로 많고, 이는 심사에서 즉시 눈에 띕니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="결과 쓰기">
+  <div class="eyebrow">Part 07 · 4장</div>
+  <h2 class="t">결과 — 해석하지 말고 보여주라</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>서술 순서</h4>
+        <ol class="d">
+          <li>표본의 기술통계 (인구통계는 3장에 있다면 생략)</li>
+          <li>주요 변수의 평균·표준편차·왜도·첨도</li>
+          <li>척도 신뢰도</li>
+          <li>주요 변수 간 상관행렬</li>
+          <li><b>연구문제 1</b>에 대한 검정 결과</li>
+          <li><b>연구문제 2</b>에 대한 검정 결과</li>
+          <li>(있다면) 추가 탐색 분석 — 탐색적임을 명시</li>
+        </ol></div>
+      <div class="card key"><h4>표와 본문의 역할 분담</h4>
+        <p><b>표</b>는 모든 수치를 담고, <b>본문</b>은 그중 <em>독자가 주목해야 할 것만</em> 말로 짚습니다.</p>
+        <p style="margin-top:.4em">표에 있는 숫자를 본문에서 전부 다시 읽어주는 것은 지면 낭비이며, 반대로 표에 없는 수치를 본문에만 쓰는 것은 검증을 막습니다.</p></div>
+    </div>
+    <div class="stack">
+      <div class="ba">
+        <div><b>× 해석이 섞임</b>
+          <p class="q">해상근무일수는 소진에 유의한 영향을 미쳤다(β=.34, p&lt;.001). 이는 장기간의 해상 고립이 승조원의 심리적 자원을 고갈시키기 때문으로 보이며, 따라서 승조원 교대 주기를 단축할 필요가 있다.</p>
+          <p style="margin-top:.5em;color:var(--crit)">→ 두 번째 문장부터는 5장의 내용. 자료가 말한 것이 아니라 연구자의 추론이다.</p></div>
+        <div><b>○ 사실만</b>
+          <p class="q">해상근무일수는 직무소진을 유의하게 정적으로 예측하였다(β=.34, t=4.82, p&lt;.001, f²=.16). 통제변수를 투입한 모형 1에 비해 설명량이 유의하게 증가하였다(ΔR²=.09, ΔF=23.24, p&lt;.001).</p>
+          <p style="margin-top:.5em;color:var(--good)">→ 해석은 전부 5장으로. 4장은 "무엇이 나왔는가"만 말한다.</p></div>
+      </div>
+      <div class="call do"><b>가설 지지 여부의 명시</b>
+        각 연구문제 서술 끝에 한 줄로 정리합니다. "따라서 가설 1은 지지되었다." / "가설 2b는 지지되지 않았다." 심사위원이 결과를 빠르게 파악하는 데 결정적입니다.</div>
+      <div class="call warn"><b>지지되지 않은 가설을 감추지 마십시오</b>
+        예상과 다른 결과는 실패가 아닙니다. 오히려 5장에서 <em>가장 흥미로운 논의</em>가 나오는 지점입니다. 유의하지 않은 결과를 빼거나 유의수준을 .10으로 슬쩍 바꾸는 것은 연구부정에 해당합니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="표와 그림">
+  <div class="eyebrow">Part 07 · 제시</div>
+  <h2 class="t">표는 혼자서도 읽혀야 한다</h2>
+  <div class="body g21">
+    <div>
+      <div class="tw"><table class="tbl">
+        <tr><th colspan="6" style="background:var(--paper-3);color:var(--ink);font-weight:700">표 4. 직무소진에 대한 위계적 회귀분석 결과 (N=348)</th></tr>
+        <tr><th>변수</th><th>모형 1<br>β</th><th>모형 2<br>β</th><th>모형 3<br>β</th><th>VIF</th><th>—</th></tr>
+        <tr><td>계급</td><td class="num">−.08</td><td class="num">−.06</td><td class="num">−.06</td><td class="num">1.34</td><td></td></tr>
+        <tr><td>근속연수</td><td class="num">.11</td><td class="num">.07</td><td class="num">.07</td><td class="num">1.41</td><td></td></tr>
+        <tr><td>해상근무일수</td><td class="num">—</td><td class="num">.34***</td><td class="num">.31***</td><td class="num">1.12</td><td></td></tr>
+        <tr><td>부대 응집력</td><td class="num">—</td><td class="num">—</td><td class="num">−.22***</td><td class="num">1.19</td><td></td></tr>
+        <tr><td>해상근무 × 응집력</td><td class="num">—</td><td class="num">—</td><td class="num">−.15**</td><td class="num">1.08</td><td></td></tr>
+        <tr><td>R²</td><td class="num">.02</td><td class="num">.13</td><td class="num">.20</td><td></td><td></td></tr>
+        <tr><td>ΔR²</td><td class="num">—</td><td class="num">.11***</td><td class="num">.07***</td><td></td><td></td></tr>
+        <tr><td>F</td><td class="num">2.84</td><td class="num">17.12***</td><td class="num">16.98***</td><td></td><td></td></tr>
+      </table></div>
+      <div class="figcap">주. β는 표준화 회귀계수. ** p &lt; .01, *** p &lt; .001</div>
+    </div>
+    <div class="stack">
+      <div class="call def"><b>표의 규칙</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>제목은 표 위</b>, 그림 제목은 <b>그림 아래</b></li>
+          <li>제목만 읽고도 무엇의 표인지 알 수 있어야 하며, <b>N을 제목에 표기</b></li>
+          <li>세로줄 없음. 가로줄은 최소한으로 (APA)</li>
+          <li>소수점 자리수 통일. 상관·회귀계수는 소수 둘째 자리</li>
+          <li>유의도 표시는 <b>표 하단 주석</b>에 한 번만 정의</li>
+          <li>본문에 <b>"표 4에 제시된 바와 같이"</b>로 반드시 언급</li>
+        </ul></div>
+      <div class="call do"><b>그림을 쓸 때</b>
+        <ul class="d" style="margin-top:.35em">
+          <li>조절효과는 <em>반드시</em> 단순기울기 그래프로 — 상호작용은 말로 설명하면 아무도 이해하지 못합니다</li>
+          <li>흑백 인쇄를 가정 — 색 대신 <b>선 형태(실선/점선)와 표식</b>으로 구분</li>
+          <li>축 이름과 단위를 반드시 표기</li>
+          <li>3D 막대·불필요한 격자·그림자는 제거</li>
+        </ul></div>
+      <div class="call warn"><b>스크린샷 금지</b>
+        SPSS 출력창을 그대로 캡처해 붙이는 것은 즉시 지적됩니다. 필요한 수치만 골라 <em>직접 만든 표</em>로 옮기십시오. 그 과정 자체가 결과를 이해했다는 증거입니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="논의 쓰기">
+  <div class="eyebrow">Part 07 · 5장</div>
+  <h2 class="t">논의 — 논문의 가치가 결정되는 장</h2>
+  <p class="lead">4장까지는 성실하면 됩니다. 5장은 <em>연구자의 사고 수준이 그대로 드러나는</em> 장이며, 심사위원이 가장 주의 깊게 읽습니다.</p>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>순서</th><th>내용</th><th>쓰는 법</th></tr>
+      <tr><td>1 · 요약</td><td class="w">주요 결과를 <em>해석 없이</em> 압축</td><td class="w">"본 연구는 ~를 검증하였다. 그 결과 첫째, ~. 둘째, ~."</td></tr>
+      <tr><td>2 · 대조</td><td class="w">선행연구와 <b>일치하는 부분과 다른 부분</b></td><td class="w">"이는 김(2021)의 결과와 일치한다. 반면 응집력의 완충효과가 나타난 이(2023)와는 달리 본 연구에서는… 이러한 차이는 함정 환경의 폐쇄성에 기인한 것으로 해석된다."</td></tr>
+      <tr><td>3 · 이론적 함의</td><td class="w">이 결과가 <b>이론에 무엇을 더하는가</b></td><td class="w">"자원보존이론이 예측하는 완충효과가 이탈 불가능한 환경에서는 성립하지 않을 수 있음을 시사한다."</td></tr>
+      <tr><td>4 · 실천적 함의</td><td class="w">누가 무엇을 <b>구체적으로</b> 바꿔야 하는가</td><td class="w">"해상근무 120일을 초과하는 시점부터 소진이 급증하므로, 교대 주기 설계 시 이를 기준점으로 검토할 필요가 있다." — <em>주체·시점·수치가 있어야 함의입니다</em></td></tr>
+      <tr><td>5 · 한계</td><td class="w">설계·표본·측정의 한계를 <b>이름 붙여</b></td><td class="w">"횡단 설계로 인과 방향을 확정할 수 없다", "3개 전단 편의표집으로 일반화에 제약이 있다", "자기보고 방식으로 동일방법편의 가능성이 있다"</td></tr>
+      <tr><td>6 · 후속연구</td><td class="w">한계를 <b>다음 연구의 설계</b>로 전환</td><td class="w">"종단 설계로 시간적 선행을 확보하고, 근무기록 등 객관 지표를 병행할 것을 제안한다"</td></tr>
+    </table></div>
+    <div class="g2" style="margin-top:1em">
+      <div class="call warn"><b>한계를 쓰는 법</b>
+        "표본이 적어 아쉽다", "시간이 부족하였다" 같은 <em>변명형</em>은 쓰지 마십시오. 한계는 사과가 아니라 <b>결과 해석의 범위를 정확히 긋는 작업</b>입니다. 각 한계마다 "따라서 ~로 해석해야 한다"를 붙이면 자동으로 올바른 형식이 됩니다.</div>
+      <div class="call do"><b>군 논문의 실천적 함의</b>
+        국방 분야 심사에서 가장 자주 나오는 질문은 <em>"그래서 우리가 뭘 바꿔야 합니까?"</em>입니다. 함의는 반드시 <b>정책·제도·교육·인사</b> 중 어디에 해당하는지를 특정하고, 가능하면 <b>실행 주체와 수치 기준</b>까지 제시하십시오.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>실천적 함의의 구체성이 군 논문 평가에서 차지하는 비중이 크다. "제도 개선이 필요하다" 수준의 문장은 함의가 아니라는 점을 분명히 짚는다.</div>
+</section>
+
+<section class="slide" data-part="7" data-title="문장 다듬기">
+  <div class="eyebrow">Part 07 · 문체</div>
+  <h2 class="t">보고서체에서 학술체로</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="ba">
+        <div><b>× 보고서체</b><p class="q">본 연구 결과 함정 승조원의 소진이 심각한 수준인 것으로 판단됨. 이에 대한 조치가 시급히 요구됨.</p></div>
+        <div><b>○ 학술체</b><p class="q">본 연구에서 함정 승조원의 정서적 고갈 평균은 4.82(SD=1.13)로, 동일 척도를 사용한 육상근무자 표본(3.91)보다 높았다.</p></div>
+      </div>
+      <div class="ba">
+        <div><b>× 단정</b><p class="q">해상근무는 승조원의 소진을 유발한다.</p></div>
+        <div><b>○ 근거에 맞는 진술</b><p class="q">해상근무일수는 직무소진과 정적으로 관련되었다. 다만 횡단 설계이므로 인과 방향은 확정할 수 없다.</p></div>
+      </div>
+      <div class="ba">
+        <div><b>× 주관</b><p class="q">놀랍게도 응집력의 효과가 나타나지 않았다.</p></div>
+        <div><b>○ 객관</b><p class="q">응집력의 조절효과는 통계적으로 유의하지 않았다(β=−.04, p=.42). 이는 선행연구의 예측과 상반된 결과이다.</p></div>
+      </div>
+      <div class="ba">
+        <div><b>× 명사 나열</b><p class="q">근무환경 개선을 통한 사기 진작 효과 극대화 방안 도출이 요구된다.</p></div>
+        <div><b>○ 동사 중심</b><p class="q">근무환경을 어떻게 개선해야 사기가 높아지는지를 후속 연구에서 검증할 필요가 있다.</p></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card key"><h4>바꾸면 즉시 좋아지는 여섯 가지</h4>
+        <ul class="d">
+          <li><b>"~됨/~함"</b> 개조식 종결 → 완결된 서술문</li>
+          <li><b>"~라고 사료된다"</b> → "~로 해석된다" 또는 근거 제시</li>
+          <li><b>과도한 피동</b> "~되어진다" → "~된다"</li>
+          <li><b>군 약어</b> 첫 등장 시 반드시 풀어 쓰고 괄호 병기 — 심사위원이 모두 군 출신은 아닙니다</li>
+          <li><b>감정 부사</b> 매우·상당히·심각하게 → 수치로 대체</li>
+          <li><b>한 문장 한 주장</b> 세 줄 넘는 문장은 나눕니다</li>
+        </ul></div>
+      <div class="call do"><b>퇴고 절차</b>
+        ① 초고를 쓰고 <b>최소 3일</b> 묵힌다<br>② <b>소리 내어 읽는다</b> — 숨이 막히는 곳이 고칠 곳이다<br>③ 각 문단의 <b>첫 문장만</b> 이어 읽는다. 그것만으로 논지가 흐르면 구조가 잡힌 것이다<br>④ 표·그림 번호와 본문 인용을 대조<br>⑤ 참고문헌과 본문 인용을 <b>양방향</b>으로 대조</div>
+      <div class="call warn"><b>시제 규칙</b>
+        선행연구 = 과거("보고하였다") · 확립된 사실 = 현재("~로 알려져 있다") · 본 연구의 절차와 결과 = 과거("측정하였다", "나타났다") · 결과의 해석 = 현재("시사한다")</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="인용과 연구윤리">
+  <div class="eyebrow">Part 07 · 윤리</div>
+  <h2 class="t">인용과 연구윤리</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card"><h4>인용 형식 (APA 7판 기준)</h4>
+        <div class="tw" style="margin-top:.5em"><table class="tbl">
+          <tr><th>상황</th><th>본문 표기</th></tr>
+          <tr><td>저자 1인</td><td class="w">(김철수, 2021) / 김철수(2021)는…</td></tr>
+          <tr><td>저자 2인</td><td class="w">(김철수, 이영희, 2022)</td></tr>
+          <tr><td>저자 3인 이상</td><td class="w">(김철수 외, 2023) / (Smith et al., 2023)</td></tr>
+          <tr><td>여러 문헌</td><td class="w">(김철수, 2021; Smith, 2019) — 가나다·알파벳순</td></tr>
+          <tr><td>직접 인용</td><td class="w">"원문 그대로"(김철수, 2021, p. 45)</td></tr>
+          <tr><td>재인용</td><td class="w">(Maslach, 1981; 김철수, 2021에서 재인용) — <em>최소화</em></td></tr>
+        </table></div>
+        <p style="margin-top:.5em;color:var(--ink-3)">※ 소속 대학의 논문 작성 지침이 APA와 다를 수 있습니다. <b>반드시 학과 양식을 먼저 확인</b>하십시오.</p></div>
+      <div class="call do"><b>재인용을 줄이십시오</b>
+        재인용이 많다는 것은 <em>원문을 읽지 않았다</em>는 자백입니다. 핵심 이론의 원전은 반드시 직접 확보해 읽으십시오. 심사에서 "이 개념은 원저자가 어떻게 정의했습니까"를 물으면 재인용만 한 사람은 답하지 못합니다.</div>
+    </div>
+    <div class="stack">
+      <div class="card key"><h4>표절의 네 가지 형태</h4>
+        <ul class="d">
+          <li><b>직접 표절</b> 출처 없이 그대로 옮기기</li>
+          <li><b>모자이크 표절</b> 단어만 바꿔 재배열 — <em>가장 흔하고 가장 위험합니다</em></li>
+          <li><b>자기표절</b> 본인의 기존 논문·보고서를 출처 없이 재사용. 군 실무보고서를 논문에 옮길 때 실제로 자주 발생합니다</li>
+          <li><b>부적절한 저자권</b> 기여 없는 사람을 저자에 넣거나, 기여한 사람을 빼기</li>
+        </ul>
+        <p style="margin-top:.5em">국내 대학은 대부분 <b>카피킬러</b> 등 유사도 검사를 의무화하며, 통상 <b>15~20% 이하</b>를 요구합니다.</p></div>
+      <div class="call warn"><b>생성형 AI 사용에 관하여</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>허용되는 용도</b> 문장 다듬기, 오탈자 점검, 번역 초안, 코드 작성 보조, 아이디어 브레인스토밍</li>
+          <li><b>금지되는 용도</b> 존재하지 않는 참고문헌 생성, 자료·수치의 조작, 본문의 대필</li>
+          <li><b>필수</b> AI가 제시한 <em>모든 인용문헌은 원문을 직접 확인</em>하십시오. 실재하지 않는 문헌을 그럴듯하게 만들어내는 사례가 실제로 다수 적발되었습니다</li>
+          <li><b>공개</b> 소속 기관의 AI 사용 지침을 확인하고, 요구된다면 사용 범위를 명시하십시오</li>
+        </ul></div>
+      <div class="call def"><b>IRB · 보안</b>
+        연구계획서, 동의서, 설문지, 모집문건을 갖추어 <b>자료 수집 전</b>에 심의를 신청합니다. 군 자료를 다루는 경우 소속 부대의 <b>보안성 검토</b>가 별도로 필요할 수 있으며, 두 절차는 병렬로 진행하십시오.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="초록과 제목">
+  <div class="eyebrow">Part 07 · 마감</div>
+  <h2 class="t">초록과 제목 — 가장 많이 읽히는 부분</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card key"><h4>초록의 다섯 문장 공식</h4>
+        <ol class="d">
+          <li><b>목적</b> 본 연구는 ~를 검증하는 데 목적이 있다</li>
+          <li><b>방법</b> ~를 대상으로 ~명에게 ~를 실시하여 ~로 분석하였다</li>
+          <li><b>결과 1</b> 첫째, ~로 나타났다</li>
+          <li><b>결과 2</b> 둘째, ~로 나타났다</li>
+          <li><b>함의</b> 이러한 결과는 ~를 시사한다</li>
+        </ol>
+        <p style="margin-top:.5em">국문 초록 <b>400~600자</b>, 영문 <b>150~250단어</b>가 일반적입니다. 학과 지침을 확인하십시오.</p></div>
+      <div class="call warn"><b>초록에 쓰지 않는 것</b>
+        인용 · 약어(불가피하면 풀어 쓰기) · 표와 그림 참조 · "본문에서 자세히 다룬다" 같은 예고 · 본문에 없는 내용</div>
+      <div class="call do"><b>초록은 맨 마지막에 씁니다</b>
+        논문이 완성된 뒤 <em>완성된 논문을 요약</em>하는 것이 초록입니다. 먼저 쓴 초록은 반드시 본문과 어긋납니다.</div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>제목 짓기</h4>
+        <p>좋은 제목에는 <b>대상 · 변수 · 관계</b>가 들어 있습니다.</p>
+        <div class="ba" style="margin-top:.6em">
+          <div><b>× 모호</b><p class="q">함정 승조원에 관한 연구</p><p class="q" style="margin-top:.4em">해군 조직문화 개선 방안 연구</p></div>
+          <div><b>○ 특정</b><p class="q">해상근무일수가 함정 승조원의 직무소진에 미치는 영향: 부대 응집력의 조절효과</p></div>
+        </div>
+        <ul class="d" style="margin-top:.6em">
+          <li>부제(콜론 뒤)에 <b>매개·조절 변수</b>를 넣는 것이 국내 관행입니다</li>
+          <li><b>"~에 관한 연구"·"~에 대한 고찰"</b>은 정보가 없으므로 피합니다</li>
+          <li>제목 길이는 <b>20~25자</b> 내외(부제 포함 시 40자 내외)</li>
+          <li>주요어(키워드)는 <b>4~6개</b>. 제목에 없는 개념을 하나쯤 넣어 검색 범위를 넓힙니다</li>
+        </ul></div>
+      <div class="call def"><b>제목·초록·연구문제·결과 소제목</b>
+        이 네 가지의 <em>용어가 일치</em>해야 합니다. 제목은 "소진", 연구문제는 "번아웃", 결과는 "직무탈진"이라고 쓰면 같은 개념도 다른 것처럼 읽힙니다. <b>용어 하나를 정하고 끝까지 유지하십시오.</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="7" data-title="실습 3">
+  <div class="eyebrow">Part 07 · 실습</div>
+  <h2 class="t">실습 3 — 목차 초안 <span class="mono" style="font-size:.5em;color:var(--ink-3)">12분</span></h2>
+  <p class="lead">실습 1에서 쓴 연구문제 한 문장을 꺼내십시오. 그 문장에서 목차가 <em>기계적으로</em> 도출됩니다.</p>
+  <div class="body g2">
+    <div class="card key">
+      <h4>골격 — 빈칸을 채우십시오</h4>
+      <p class="mono" style="font-size:.86em;line-height:2;color:var(--ink)">
+      Ⅰ. 서론<br>
+      &nbsp;&nbsp;1. 연구의 필요성<br>
+      &nbsp;&nbsp;2. 연구목적 및 연구문제<br><br>
+      Ⅱ. 이론적 배경<br>
+      &nbsp;&nbsp;1. <span style="color:var(--mag)">[독립변수]</span> ______________<br>
+      &nbsp;&nbsp;2. <span style="color:var(--mag)">[종속변수]</span> ______________<br>
+      &nbsp;&nbsp;3. <span style="color:var(--mag)">[조절/매개변수]</span> ______________<br>
+      &nbsp;&nbsp;4. 변수 간 관계에 관한 선행연구<br><br>
+      Ⅲ. 연구방법<br>
+      &nbsp;&nbsp;1. 연구모형 및 가설 &nbsp;2. 연구대상<br>
+      &nbsp;&nbsp;3. 측정도구 &nbsp;4. 연구절차 &nbsp;5. 자료분석<br><br>
+      Ⅳ. 연구결과<br>
+      &nbsp;&nbsp;1. 기술통계 및 상관분석<br>
+      &nbsp;&nbsp;2. <span style="color:var(--mag)">[연구문제 1]</span> ______________<br>
+      &nbsp;&nbsp;3. <span style="color:var(--mag)">[연구문제 2]</span> ______________<br><br>
+      Ⅴ. 논의 및 결론<br>
+      &nbsp;&nbsp;1. 논의 &nbsp;2. 결론 및 제언 &nbsp;3. 연구의 한계</p>
+    </div>
+    <div class="stack">
+      <div class="call do"><b>1단계 (5분)</b>
+        Ⅱ장의 1·2·3절에 <em>연구문제 문장의 변수 이름을 그대로</em> 옮겨 적습니다. 변수가 3개면 절이 3개, 4개면 4개입니다. 여기서 막힌다면 변수가 아직 확정되지 않은 것입니다.</div>
+      <div class="call do"><b>2단계 (4분)</b>
+        Ⅳ장의 2·3절에 <em>연구문제를 서술문으로 바꿔</em> 적습니다.<br>
+        <span class="mono" style="color:var(--ink-3)">연구문제 1: "해상근무일수는 소진에 영향을 미치는가"<br>→ Ⅳ-2. 해상근무일수가 직무소진에 미치는 영향</span></div>
+      <div class="call do"><b>3단계 (3분)</b>
+        각 절 옆에 <b>예상 분량(페이지)</b>을 적습니다. 합이 50~70페이지 범위에 들어오는지 확인하고, 특정 절이 비대하면 쪼개거나 합칩니다.</div>
+      <div class="call warn"><b>이 목차의 의미</b>
+        Ⅱ장의 절 수 = 변수 수, Ⅳ장의 절 수 = 연구문제 수. 이 대응이 성립하지 않는 목차는 <em>논증이 아직 정리되지 않았다는 신호</em>입니다. 목차가 서면 논문의 8할은 설계가 끝난 것입니다.</div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>희망자 1~2명의 목차를 앞에서 함께 검토하면 효과가 크다. 대개 Ⅱ장 절 구성과 변수의 불일치가 즉시 드러난다.</div>
+</section>
+
+<!-- ========== PART 8 ========== -->
+<section class="slide part" data-part="8" data-title="Part 08 · 실행과 심사">
+  <div class="pno">08</div>
+  <h2>실행과 심사</h2>
+  <div class="pen">Execution &amp; Defense</div>
+  <p class="pl">논문은 능력으로 쓰는 것이 아니라 <em>일정으로</em> 씁니다. 실패한 논문의 대부분은 어려워서가 아니라 늦어서 실패합니다.</p>
+  <div class="pq"><span class="chip">역산 일정</span><span class="chip">지도교수</span><span class="chip">심사 대응</span><span class="chip">체크리스트</span></div>
+</section>
+
+<section class="slide" data-part="8" data-title="역산 일정표">
+  <div class="eyebrow">Part 08 · 일정</div>
+  <h2 class="t">제출일에서 거꾸로 세는 12개월</h2>
+  <p class="lead">가장 흔한 착각은 &lsquo;집필&rsquo;에 시간이 많이 걸린다는 것입니다. 실제로 시간을 삼키는 것은 <em>IRB 승인과 자료 수집</em>입니다.</p>
+  <div class="body">
+    <div class="fig">
+      <svg viewBox="0 0 900 300" role="img" aria-label="12개월 논문 일정 간트 차트">
+        <g font-size="11.5">
+          <line x1="180" y1="30" x2="880" y2="30" stroke="var(--rule-2)"/>
+          <g font-family="var(--mono)" font-size="10" fill="var(--ink-3)" text-anchor="middle">
+            <text x="209" y="22">M1</text><text x="267" y="22">M2</text><text x="325" y="22">M3</text>
+            <text x="384" y="22">M4</text><text x="442" y="22">M5</text><text x="500" y="22">M6</text>
+            <text x="559" y="22">M7</text><text x="617" y="22">M8</text><text x="675" y="22">M9</text>
+            <text x="734" y="22">M10</text><text x="792" y="22">M11</text><text x="850" y="22">M12</text>
+          </g>
+          <g fill="var(--ink)" font-weight="650">
+            <text x="14" y="56">주제 탐색 · 문헌</text>
+            <text x="14" y="86">연구계획서 · 지도</text>
+            <text x="14" y="116">IRB 신청 · 승인</text>
+            <text x="14" y="146">도구 확정 · 예비조사</text>
+            <text x="14" y="176">본조사 자료수집</text>
+            <text x="14" y="206">분석 · 4장 집필</text>
+            <text x="14" y="236">2·5장 · 1장 · 초록</text>
+            <text x="14" y="266">심사 · 수정 · 제출</text>
+          </g>
+          <g>
+            <rect x="180" y="45" width="175" height="15" fill="var(--paper-4)" stroke="var(--ink-3)"/>
+            <rect x="238" y="75" width="146" height="15" fill="var(--paper-4)" stroke="var(--ink-3)"/>
+            <rect x="325" y="105" width="146" height="15" fill="var(--warn-bg)" stroke="var(--warn)"/>
+            <rect x="355" y="135" width="116" height="15" fill="var(--paper-4)" stroke="var(--ink-3)"/>
+            <rect x="471" y="165" width="175" height="15" fill="var(--mag-soft)" stroke="var(--mag)"/>
+            <rect x="617" y="195" width="146" height="15" fill="var(--paper-4)" stroke="var(--ink-3)"/>
+            <rect x="705" y="225" width="146" height="15" fill="var(--paper-4)" stroke="var(--ink-3)"/>
+            <rect x="792" y="255" width="88" height="15" fill="var(--mag-soft)" stroke="var(--mag)"/>
+          </g>
+          <g font-family="var(--mono)" font-size="9.5">
+            <text x="480" y="117" fill="var(--warn)">← 2~3개월. 보완 요구 시 재신청</text>
+            <text x="655" y="177" fill="var(--mag)">← 회수율에 따라 연장 위험</text>
+          </g>
+          <line x1="471" y1="38" x2="471" y2="285" stroke="var(--mag)" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="471" y="296" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="var(--mag)">이 시점까지 자료수집 시작 못하면 1학기 연기</text>
+        </g>
+      </svg>
+    </div>
+    <div class="g3" style="margin-top:1em">
+      <div class="call warn"><b>IRB를 과소평가하지 마십시오</b>최초 신청에서 한 번에 승인되는 경우는 드뭅니다. 보완 요구 → 재제출 → 재심의로 <b>2~3개월</b>을 잡아야 합니다.</div>
+      <div class="call warn"><b>자료 수집은 늘 늦어집니다</b>부대 협조 공문, 지휘관 교체, 훈련 일정, 낮은 회수율. 계획의 <b>1.5배</b>를 잡으십시오.</div>
+      <div class="call do"><b>2·5장을 뒤로 미루는 이유</b>결과가 나와야 무엇을 이론적으로 다룰지 확정됩니다. 2장을 먼저 완성하면 대부분 다시 씁니다.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="8" data-title="지도교수와 심사">
+  <div class="eyebrow">Part 08 · 관계</div>
+  <h2 class="t">지도교수와 일하는 법</h2>
+  <div class="body g2">
+    <div class="stack">
+      <div class="card key"><h4>면담에 가져갈 것</h4>
+        <ul class="d">
+          <li><b>진척 요약 1장</b> — 지난 면담 이후 한 일, 이번에 결정할 사항, 다음까지 할 일</li>
+          <li><b>질문은 선택지 형태로</b> — "어떻게 할까요?"가 아니라 "A안과 B안 중 어느 쪽이 낫겠습니까? 저는 A를 생각하는데 이유는 ~입니다"</li>
+          <li><b>실물</b> — 표, 그림, 문항 초안. 말로만 하는 상의는 진척되지 않습니다</li>
+        </ul></div>
+      <div class="card"><h4>피해야 할 세 가지</h4>
+        <ul class="d">
+          <li><b>잠수</b> — 막혔을 때 연락을 끊는 것. 진척이 없어도 "이 부분에서 막혀 있습니다"를 보고하는 편이 낫습니다</li>
+          <li><b>한꺼번에</b> — 완성본을 처음 보여주면 구조부터 다시 해야 할 수 있습니다. <em>장 단위로 자주</em> 보내십시오</li>
+          <li><b>피드백 미반영</b> — 지난번 지적을 고치지 않고 다음 원고를 가져가는 것이 가장 나쁜 신호입니다</li>
+        </ul></div>
+      <div class="call do"><b>군 복무와 병행하는 요령</b>
+        하루 3시간을 확보하려 하지 말고 <b>매일 같은 시간 60분</b>을 고정하십시오. 논문은 몰아쓰기가 가장 안 되는 종류의 글입니다. 당직·출동으로 끊기는 것이 기본값이므로, <em>끊겨도 복귀 가능한 단위</em>(문단 하나, 표 하나)로 작업을 쪼개는 것이 핵심입니다.</div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>심사 질문의 유형과 대응</h4>
+        <div class="tw" style="margin-top:.5em"><table class="tbl">
+          <tr><th>유형</th><th>예시</th><th>대응</th></tr>
+          <tr><td>확인형</td><td class="w">"표본은 몇 명입니까?"</td><td class="w">즉답. 페이지까지 안내</td></tr>
+          <tr><td>방법론</td><td class="w">"왜 위계적 회귀를 썼습니까?"</td><td class="w">대안과 비교해 선택 이유를 설명</td></tr>
+          <tr><td>한계 지적</td><td class="w">"횡단인데 인과를 말할 수 있습니까?"</td><td class="w"><b>인정하고 범위를 좁힌다.</b> "말할 수 없습니다. 관련성으로 수정하겠습니다"</td></tr>
+          <tr><td>대안 해석</td><td class="w">"역방향 가능성은?"</td><td class="w">가능성을 인정하고 배제 근거 또는 한계 기술 제시</td></tr>
+          <tr><td>확장 요구</td><td class="w">"계급별로도 봤습니까?"</td><td class="w">했으면 제시, 안 했으면 <b>후속 과제로 수용</b></td></tr>
+          <tr><td>취향형</td><td class="w">"이 용어보다 저 용어가…"</td><td class="w">즉시 수용. 다투지 않는다</td></tr>
+        </table></div></div>
+      <div class="call warn"><b>심사장에서의 원칙</b>
+        <ul class="d" style="margin-top:.35em">
+          <li><b>방어하지 말고 이해하십시오.</b> 지적의 8할은 논문을 좋게 만들려는 것입니다</li>
+          <li>모르면 <b>"확인해서 보완하겠습니다"</b>가 정답입니다. 지어내는 순간 신뢰를 잃습니다</li>
+          <li>모든 지적을 <b>받아 적으십시오.</b> 수정 대조표를 만들어 <em>지적사항 – 수정내용 – 페이지</em>로 제출하면 재심사가 매끄럽습니다</li>
+          <li>심사위원 간 의견이 충돌하면 <b>지도교수에게 조정을 요청</b>하십시오. 본인이 중재하려 하지 마십시오</li>
+        </ul></div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>"인정하고 범위를 좁힌다"가 심사 대응의 핵심 기술이다. 한계를 인정하는 것이 감점이 아니라 오히려 신뢰를 얻는다는 점을 강조한다.</div>
+</section>
+
+<section class="slide" data-part="8" data-title="흔한 실패 열 가지">
+  <div class="eyebrow">Part 08 · 경고</div>
+  <h2 class="t">논문이 막히는 열 개의 지점</h2>
+  <div class="body">
+    <div class="tw"><table class="tbl">
+      <tr><th>#</th><th>증상</th><th>실제 원인</th><th>처방</th></tr>
+      <tr><td>1</td><td class="w">주제가 계속 바뀐다</td><td class="w">문헌을 충분히 읽지 않았다</td><td class="w">핵심 논문 10편 정독 후 재결정</td></tr>
+      <tr><td>2</td><td class="w">연구문제를 한 문장으로 못 쓴다</td><td class="w">변수가 확정되지 않았다</td><td class="w">문장 틀 빈칸 채우기 (Part 01)</td></tr>
+      <tr><td>3</td><td class="w">2장이 논문 소개의 나열이다</td><td class="w">쟁점이 아니라 연구자로 묶었다</td><td class="w">문헌 매트릭스 → 쟁점별 재구성</td></tr>
+      <tr><td>4</td><td class="w">설문을 다 돌렸는데 분석이 안 된다</td><td class="w">분석 계획 없이 문항을 만들었다</td><td class="w">되돌릴 수 없음. 설계 단계에서 기법 확정</td></tr>
+      <tr><td>5</td><td class="w">신뢰도가 .5대로 나온다</td><td class="w">역채점 누락 또는 개념 혼재</td><td class="w">역채점 확인 → 문항-총점 상관 점검</td></tr>
+      <tr><td>6</td><td class="w">가설이 하나도 지지되지 않았다</td><td class="w">검정력 부족 또는 측정 문제</td><td class="w">효과크기·신뢰구간으로 재서술. 결과 자체는 보고 가치가 있다</td></tr>
+      <tr><td>7</td><td class="w">4장과 5장이 같은 말을 한다</td><td class="w">결과와 해석을 분리하지 않았다</td><td class="w">4장에서 해석 문장을 전부 5장으로 이동</td></tr>
+      <tr><td>8</td><td class="w">실천적 함의가 공허하다</td><td class="w">"개선이 필요하다" 수준에 머물렀다</td><td class="w">주체·시점·수치 기준을 명시</td></tr>
+      <tr><td>9</td><td class="w">유사도 검사에서 걸린다</td><td class="w">모자이크 표절 또는 자기표절</td><td class="w">문장 재작성 + 출처 명시. 본인 보고서도 인용 대상</td></tr>
+      <tr><td>10</td><td class="w">일정이 한 학기 밀린다</td><td class="w">IRB·자료수집 소요를 과소 추정</td><td class="w">역산 일정표 재작성, 표본 규모 현실화</td></tr>
+    </table></div>
+    <div class="call warn" style="margin-top:1em"><b>4번은 되돌릴 수 없습니다</b>
+      나머지 아홉 개는 시간을 들이면 복구됩니다. 그러나 <em>수집하지 않은 변수는 나중에 만들 수 없습니다.</em> 오늘 강의에서 단 하나만 가져간다면, <b>설문 문항을 확정하기 전에 분석 계획표를 먼저 쓰는 것</b>입니다.</div>
+  </div>
+</section>
+
+<!-- ========== 마무리 ========== -->
+<section class="slide" data-part="9" data-title="자기점검 체크리스트">
+  <div class="eyebrow">Closing · 점검</div>
+  <h2 class="t">제출 전 자기점검 체크리스트</h2>
+  <div class="body g3">
+    <div class="stack">
+      <div class="card"><h4>설계</h4>
+        <ul class="d">
+          <li>연구문제가 한 문장으로 진술되어 있는가</li>
+          <li>변수의 역할(IV·DV·M·Mo·CV)이 모형에 명시되어 있는가</li>
+          <li>가설마다 번호와 방향이 있는가</li>
+          <li>연구설계 유형이 명시되어 있는가</li>
+          <li>인과 주장의 수위가 설계에 부합하는가</li>
+        </ul></div>
+      <div class="card"><h4>표본</h4>
+        <ul class="d">
+          <li>모집단·표집틀·표집방법이 사실대로 기술되어 있는가</li>
+          <li>배포·회수·제외·최종 n이 모두 있는가</li>
+          <li>표본 크기의 근거가 제시되어 있는가</li>
+          <li>무응답 편향 점검 결과가 있는가</li>
+        </ul></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>측정</h4>
+        <ul class="d">
+          <li>모든 척도의 출처·문항수·응답범위가 있는가</li>
+          <li>본 연구의 신뢰도(α 또는 ω)를 보고했는가</li>
+          <li>역채점을 처리했는가</li>
+          <li>점수 해석 방향을 명시했는가</li>
+          <li>동일방법편의에 대한 언급이 있는가</li>
+        </ul></div>
+      <div class="card"><h4>분석</h4>
+        <ul class="d">
+          <li>기법이 연구문제 유형에 부합하는가</li>
+          <li><b>효과크기</b>를 함께 보고했는가</li>
+          <li>다중공선성(VIF)을 확인했는가</li>
+          <li>다중검정 보정 여부를 밝혔는가</li>
+          <li>프로그램과 버전을 명시했는가</li>
+        </ul></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>집필</h4>
+        <ul class="d">
+          <li>연구문제 번호와 결과 소제목이 일치하는가</li>
+          <li>4장에 해석이 섞여 있지 않은가</li>
+          <li>한계가 이름 붙여 기술되어 있는가</li>
+          <li>실천적 함의에 주체와 기준이 있는가</li>
+          <li>용어가 처음부터 끝까지 통일되어 있는가</li>
+          <li>모든 표·그림이 본문에서 언급되는가</li>
+        </ul></div>
+      <div class="card key"><h4>형식·윤리</h4>
+        <ul class="d">
+          <li>본문 인용과 참고문헌이 양방향으로 일치하는가</li>
+          <li>재인용을 최소화했는가</li>
+          <li>IRB 승인번호가 기재되어 있는가</li>
+          <li>유사도 검사를 통과했는가</li>
+          <li>보안성 검토가 필요한 내용은 없는가</li>
+          <li>학과 논문 양식 지침을 대조했는가</li>
+        </ul></div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>이 슬라이드는 인쇄 배포용으로 별도 제공하면 활용도가 높다. 인쇄 시 전체 슬라이드가 페이지 단위로 출력된다.</div>
+</section>
+
+<section class="slide" data-part="9" data-title="자료와 도구">
+  <div class="eyebrow">Closing · 자료</div>
+  <h2 class="t">이어서 볼 것들</h2>
+  <div class="body g3">
+    <div class="stack">
+      <div class="card"><h4>방법론 · 국내</h4>
+        <ul class="d">
+          <li>채서일·김주영, 『사회과학조사방법론』</li>
+          <li>성태제, 『연구방법론』</li>
+          <li>이훈영, 『연구조사방법론』</li>
+          <li>우종필, 『구조방정식모델 개념과 이해』</li>
+        </ul></div>
+      <div class="card"><h4>방법론 · 국외</h4>
+        <ul class="d">
+          <li>Creswell &amp; Creswell, <em>Research Design</em> — 양적·질적·혼합 개관</li>
+          <li>Shadish, Cook &amp; Campbell, <em>Experimental and Quasi-Experimental Designs</em> — 타당도의 표준 문헌</li>
+          <li>Hayes, <em>Introduction to Mediation, Moderation, and Conditional Process Analysis</em></li>
+          <li>Dillman et al., <em>Internet, Phone, Mail, and Mixed-Mode Surveys</em></li>
+        </ul></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>글쓰기</h4>
+        <ul class="d">
+          <li>APA, <em>Publication Manual</em> (7th ed.)</li>
+          <li>Booth, Colomb &amp; Williams, <em>The Craft of Research</em></li>
+          <li>Belcher, <em>Writing Your Journal Article in Twelve Weeks</em></li>
+          <li>소속 대학의 <b>학위논문 작성 지침</b> — 가장 먼저 확인할 문서</li>
+        </ul></div>
+      <div class="card key"><h4>도구</h4>
+        <ul class="d">
+          <li><b>G*Power 3.1</b> — 표본 크기·검정력 (무료)</li>
+          <li><b>jamovi · JASP</b> — SPSS 대안, α와 ω 동시 산출 (무료)</li>
+          <li><b>PROCESS macro</b> — 매개·조절 (무료, Hayes)</li>
+          <li><b>Zotero</b> — 서지 관리 (무료)</li>
+          <li><b>Google Forms · Qualtrics</b> — 온라인 조사</li>
+        </ul></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h4>자료원</h4>
+        <ul class="d">
+          <li>RISS · KISS · DBpia · 국회전자도서관</li>
+          <li>한국국방연구원(KIDA) 발간물</li>
+          <li>국방대·해군사관학교 학술지</li>
+          <li>「국방정책연구」·「군사」·「해양전략」</li>
+          <li>DTIC (미 국방기술정보센터)</li>
+          <li>Google Scholar · Web of Science</li>
+        </ul></div>
+      <div class="call case"><b>본 강의의 사례 시스템</b>
+        DRM6 — 일상재구성법 기반 시간대별 경험 조사 시스템. 설문 흐름, 문항 구성, 데이터 스키마, Apps Script 백엔드가 공개되어 있어 <em>설계 결정과 구현을 함께</em> 볼 수 있습니다.
+        <p class="mono" style="margin-top:.4em;font-size:.9em">github.com/edu-data/DRM6</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-part="9" data-title="마무리">
+  <div class="eyebrow">Closing · 회수</div>
+  <h2 class="t">오늘 가져가는 세 가지</h2>
+  <div class="body">
+    <div class="g3">
+      <div class="card key"><span class="tag">01</span><h4>연구문제 한 문장</h4>
+        <p>대상 · 독립변수 · 종속변수 · 조절/매개가 모두 특정된 문장. 이 문장이 없으면 아직 연구는 시작되지 않았습니다.</p></div>
+      <div class="card key"><span class="tag">02</span><h4>연구설계 한 장</h4>
+        <p>설계 유형 · 표집 · 표본 크기 근거 · 측정도구 · 분석 기법. <em>설문 문항을 만들기 전에</em> 완성되어야 합니다.</p></div>
+      <div class="card key"><span class="tag">03</span><h4>논문 목차 초안</h4>
+        <p>Ⅱ장 절 수 = 변수 수, Ⅳ장 절 수 = 연구문제 수. 이 대응이 맞으면 논증의 뼈대가 선 것입니다.</p></div>
+    </div>
+    <div class="g2" style="margin-top:1.4em">
+      <div class="call do"><b>가장 중요한 한 문장</b>
+        <p style="font-size:1.15em;color:var(--ink);font-weight:700;margin-top:.3em;line-height:1.5">좋은 논문은 어려운 통계로 쓰는 것이 아니라,<br>정확한 질문과 정직한 절차로 씁니다.</p>
+        <p style="margin-top:.6em">여러분은 이미 현장의 문제의식과 조직에 대한 이해를 가지고 있습니다. 오늘 배운 것은 그것을 <em>검증 가능한 형태로 옮기는 절차</em>일 뿐입니다.</p></div>
+      <div class="call case"><b>다음 한 주에 할 일</b>
+        <ol class="d" style="margin-top:.35em">
+          <li>실습 1의 연구문제 문장을 지도교수에게 보내 확인받기</li>
+          <li>핵심 선행연구 5편을 골라 문헌 매트릭스 표 만들기</li>
+          <li>소속 기관 IRB 신청 절차와 소요 기간 확인하기</li>
+          <li>학과 학위논문 작성 지침 내려받아 목차 양식 대조하기</li>
+        </ol>
+        <p style="margin-top:.5em;color:var(--mag)"><b>이 네 가지를 한 주 안에 하면, 다음 학기가 완전히 달라집니다.</b></p></div>
+    </div>
+  </div>
+  <div class="note"><b>강의 노트</b>마지막은 질의응답으로 15분 이상 남겨둔다. 개별 주제 상담 요청이 반드시 나오므로 연락 방법을 안내하고 마친다.</div>
+</section>
+
+</main>
+
+<nav id="chrome">
+  <span class="lbl" id="part-lbl">—</span>
+  <div id="track" role="slider" tabindex="0" aria-label="슬라이드 진행" aria-valuemin="1" aria-valuenow="1" aria-valuemax="1">
+    <div class="base"></div><div class="fill"></div><div class="cur"></div>
+  </div>
+  <span class="lbl"><b id="cur-no" class="num">1</b> / <span id="tot-no" class="num">0</span></span>
+  <button id="btn-toc" type="button">목차 · O</button>
+  <button id="btn-note" type="button">노트 · N</button>
+  <button id="btn-print" type="button">인쇄</button>
+</nav>
+
+<div id="toc" role="dialog" aria-label="목차" aria-modal="true">
+  <h3>Contents · 항로표 <span style="color:var(--ink-3);letter-spacing:.1em">— 클릭하여 이동, Esc로 닫기</span></h3>
+  <div class="cols" id="toc-cols"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var PARTS = {
+    '0':'오리엔테이션','1':'01 · 연구문제','2':'02 · 문헌고찰','3':'03 · 연구설계',
+    '4':'04 · 표본과 표집','5':'05 · 측정과 설문개발','6':'06 · 자료분석',
+    '7':'07 · 논문작성','8':'08 · 실행과 심사','9':'마무리'
+  };
+  var slides = [].slice.call(document.querySelectorAll('.slide'));
+  var total  = slides.length;
+  var idx    = 0;
+
+  // 레일 삽입
+  slides.forEach(function(s, i){
+    var p = s.getAttribute('data-part') || '0';
+    var r = document.createElement('div');
+    r.className = 'rail';
+    var n = document.createElement('span');
+    n.className = 'rail-no';
+    n.textContent = (p === '0' || p === '9') ? '' : 'PART ' + p;
+    r.appendChild(n);
+    s.insertBefore(r, s.firstChild);
+    s.id = 's' + (i + 1);
+  });
+
+  var elCur = document.getElementById('cur-no');
+  var elTot = document.getElementById('tot-no');
+  var elPart = document.getElementById('part-lbl');
+  var track = document.getElementById('track');
+  var fill  = track.querySelector('.fill');
+  var cur   = track.querySelector('.cur');
+  elTot.textContent = total;
+  track.setAttribute('aria-valuemax', total);
+
+  // 파트 경계 눈금
+  var lastPart = null;
+  slides.forEach(function(s, i){
+    var p = s.getAttribute('data-part');
+    if (p !== lastPart) {
+      var tick = document.createElement('div');
+      tick.className = 'wp';
+      tick.style.left = (i / (total - 1) * 100) + '%';
+      track.appendChild(tick);
+      lastPart = p;
+    }
+  });
+
+  function show(n, push){
+    n = Math.max(0, Math.min(total - 1, n));
+    slides[idx].classList.remove('on');
+    idx = n;
+    slides[idx].classList.add('on');
+    slides[idx].scrollTop = 0;
+    var pct = total > 1 ? (idx / (total - 1)) * 100 : 0;
+    fill.style.width = pct + '%';
+    cur.style.left = pct + '%';
+    elCur.textContent = idx + 1;
+    elPart.textContent = PARTS[slides[idx].getAttribute('data-part')] || '';
+    track.setAttribute('aria-valuenow', idx + 1);
+    if (push !== false) {
+      try { history.replaceState(null, '', '#s' + (idx + 1)); } catch (e) {}
+    }
+  }
+
+  function step(d){ show(idx + d); }
+
+  document.addEventListener('keydown', function(e){
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var toc = document.getElementById('toc');
+    var k = e.key;
+    if (k === 'Escape') { toc.classList.remove('on'); return; }
+    if (toc.classList.contains('on')) return;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ') { e.preventDefault(); step(1); }
+    else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); step(-1); }
+    else if (k === 'Home') { e.preventDefault(); show(0); }
+    else if (k === 'End') { e.preventDefault(); show(total - 1); }
+    else if (k === 'o' || k === 'O') { e.preventDefault(); toc.classList.add('on'); }
+    else if (k === 'n' || k === 'N') { document.body.classList.toggle('notes'); }
+    else if (k === 'f' || k === 'F') {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      } else if (document.exitFullscreen) { document.exitFullscreen(); }
+    }
+  });
+
+  function seek(e){
+    var r = track.getBoundingClientRect();
+    show(Math.round((e.clientX - r.left) / r.width * (total - 1)));
+  }
+  track.addEventListener('click', seek);
+  track.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); step(-1); }
+  });
+
+  // 목차 구성
+  var cols = document.getElementById('toc-cols');
+  var groups = {}, order = [];
+  slides.forEach(function(s, i){
+    var p = s.getAttribute('data-part');
+    if (!groups[p]) { groups[p] = []; order.push(p); }
+    groups[p].push({ i: i, t: s.getAttribute('data-title') || ('슬라이드 ' + (i + 1)) });
+  });
+  order.forEach(function(p){
+    var box = document.createElement('div');
+    box.className = 'pt';
+    var h = document.createElement('div');
+    h.textContent = PARTS[p] || p;
+    box.appendChild(h);
+    groups[p].forEach(function(it){
+      var a = document.createElement('a');
+      a.href = '#s' + (it.i + 1);
+      a.innerHTML = '<span class="num">' + (it.i + 1) + '</span>';
+      a.appendChild(document.createTextNode(it.t));
+      a.addEventListener('click', function(ev){
+        ev.preventDefault();
+        document.getElementById('toc').classList.remove('on');
+        show(it.i);
+      });
+      box.appendChild(a);
+    });
+    cols.appendChild(box);
+  });
+
+  document.getElementById('btn-toc').addEventListener('click', function(){
+    document.getElementById('toc').classList.toggle('on');
+  });
+  document.getElementById('btn-note').addEventListener('click', function(){
+    document.body.classList.toggle('notes');
+  });
+  document.getElementById('btn-print').addEventListener('click', function(){ window.print(); });
+
+  var m = /^#s(\d+)$/.exec(location.hash);
+  show(m ? parseInt(m[1], 10) - 1 : 0, false);
+
+  // 표지 배경 — 나침도와 방위선
+  var cv = document.getElementById('rose');
+  if (cv && !window.matchMedia('(max-width: 820px)').matches) {
+    cv.hidden = false;
+    var ctx = cv.getContext('2d');
+    function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+    function draw(){
+      var host = slides[0];
+      var w = host.clientWidth, h = host.clientHeight, dpr = window.devicePixelRatio || 1;
+      if (!w || !h) return;
+      cv.width = w * dpr; cv.height = h * dpr;
+      cv.style.width = w + 'px'; cv.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      var cx = w * 0.78, cy = h * 0.5, R = Math.min(w, h) * 0.42;
+      ctx.strokeStyle = css('--rule-2'); ctx.lineWidth = 1;
+      [0.42, 0.68, 1].forEach(function(f){
+        ctx.beginPath(); ctx.arc(cx, cy, R * f, 0, Math.PI * 2); ctx.stroke();
+      });
+      for (var d = 0; d < 360; d += 7.5) {
+        var a = (d - 90) * Math.PI / 180;
+        var major = d % 45 === 0;
+        var r0 = R * (major ? 0.68 : 0.92);
+        ctx.globalAlpha = major ? 1 : 0.55;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+        ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = css('--mag-line'); ctx.lineWidth = 1.2;
+      for (var i = 0; i < 8; i++) {
+        var ang = (i * 45 - 90) * Math.PI / 180;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(ang) * R * 1.55, cy + Math.sin(ang) * R * 1.55);
+        ctx.stroke();
+      }
+      ctx.fillStyle = css('--mag');
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - R * 0.42);
+      ctx.lineTo(cx + R * 0.07, cy);
+      ctx.lineTo(cx, cy + R * 0.16);
+      ctx.lineTo(cx - R * 0.07, cy);
+      ctx.closePath(); ctx.fill();
+    }
+    draw();
+    var t;
+    window.addEventListener('resize', function(){ clearTimeout(t); t = setTimeout(draw, 160); });
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  }
+
+})();
+</script>
+</body>
+</html>
