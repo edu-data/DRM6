@@ -30,6 +30,18 @@
 2개 시트로 나뉜 데이터 스키마가 만드는 3수준 위계 구조,
 그리고 동일 설계를 함정 승조원 조사로 옮길 때의 고려사항을 다룹니다.
 
+## PowerPoint 판
+
+같은 내용을 `.pptx` 로도 만들 수 있습니다. `pptx/` 의 생성기가 이 HTML 을 읽어
+63장짜리 PowerPoint 를 만들며, 발표자 노트도 함께 넘어갑니다.
+
+```bash
+cd pptx && pip install python-pptx && python build_pptx.py
+```
+
+바로 쓸 수 있는 결과물: [`pptx/조사연구방법과_논문작성법.pptx`](pptx/조사연구방법과_논문작성법.pptx)
+자세한 내용은 [`pptx/README.md`](pptx/README.md) 참고.
+
 ## 조작
 
 | 키 | 동작 |

@@ -1,0 +1,7 @@
+python-pptx>=1.0
+
+# 선택 — 미리보기·넘침 검사 (qa_preview.py)
+Pillow>=10.0
+
+# 선택 — SVG 도해 재생성 (render_figures.py)
+# playwright  : pip install playwright && playwright install chromium
