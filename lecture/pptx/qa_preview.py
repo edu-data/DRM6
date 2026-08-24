@@ -163,6 +163,7 @@ def render(path, out_dir, pages=None, px_w=1500):
         warn = []
         for shp in slide.shapes:
             _draw_shape(dr, img, shp, px_per_in, warn, "s%02d" % idx)
+
         for tag, over in warn:
             warnings.append((idx, tag, over))
         name = os.path.join(out_dir, "slide-%02d.png" % idx)
@@ -171,9 +172,36 @@ def render(path, out_dir, pages=None, px_w=1500):
     return made, warnings
 
 
-def _draw_shape(dr, img, shp, ppi, warn, tag):
-    x, y = shp.left / EMU_IN * ppi, shp.top / EMU_IN * ppi
-    w, h = (shp.width or 0) / EMU_IN * ppi, (shp.height or 0) / EMU_IN * ppi
+IDENT = (0.0, 0.0, 1.0, 1.0)
+
+
+def _group_transform(shp, tr):
+    """그룹의 자식 좌표계(chOff/chExt) → 부모 좌표계 변환을 합성한다."""
+    xf = shp._element.find(qn("p:grpSpPr")).find(qn("a:xfrm"))
+    off, ext = xf.find(qn("a:off")), xf.find(qn("a:ext"))
+    ch_off, ch_ext = xf.find(qn("a:chOff")), xf.find(qn("a:chExt"))
+    ox, oy = int(off.get("x")), int(off.get("y"))
+    cw, chh = int(ext.get("cx")), int(ext.get("cy"))
+    cox, coy = int(ch_off.get("x")), int(ch_off.get("y"))
+    ccw, cch = int(ch_ext.get("cx")), int(ch_ext.get("cy"))
+    sx = cw / ccw if ccw else 1.0
+    sy = chh / cch if cch else 1.0
+    pdx, pdy, psx, psy = tr
+    return (pdx + (ox - cox * sx) * psx, pdy + (oy - coy * sy) * psy,
+            psx * sx, psy * sy)
+
+
+def _draw_shape(dr, img, shp, ppi, warn, tag, tr=IDENT):
+    if shp.shape_type == MSO_SHAPE_TYPE.GROUP:
+        inner = _group_transform(shp, tr)
+        for child in shp.shapes:
+            _draw_shape(dr, img, child, ppi, warn, tag, inner)
+        return
+    dx, dy, sx, sy = tr
+    x = (dx + shp.left * sx) / EMU_IN * ppi
+    y = (dy + shp.top * sy) / EMU_IN * ppi
+    w = (shp.width or 0) * sx / EMU_IN * ppi
+    h = (shp.height or 0) * sy / EMU_IN * ppi
 
     if shp.shape_type == MSO_SHAPE_TYPE.PICTURE:
         try:
@@ -185,7 +213,7 @@ def _draw_shape(dr, img, shp, ppi, warn, tag):
         return
 
     if shp.has_table:
-        _draw_table(dr, shp, x, y, ppi, warn, tag)
+        _draw_table(dr, shp, x, y, ppi, warn, tag, tr)
         return
 
     if shp.shape_type == MSO_SHAPE_TYPE.LINE or shp._element.tag.endswith("}cxnSp"):
@@ -246,10 +274,11 @@ def _rotated_text(img, shp, x, y, w, h, ppi):
     img.paste(tile, (int(cx - tile.width / 2), int(cy - tile.height / 2)), tile)
 
 
-def _draw_table(dr, shp, x, y, ppi, warn, tag):
+def _draw_table(dr, shp, x, y, ppi, warn, tag, tr=IDENT):
+    _, _, sx, sy = tr
     tbl = shp.table
-    widths = [c.width / EMU_IN * ppi for c in tbl.columns]
-    heights = [r.height / EMU_IN * ppi for r in tbl.rows]
+    widths = [c.width * sx / EMU_IN * ppi for c in tbl.columns]
+    heights = [r.height * sy / EMU_IN * ppi for r in tbl.rows]
     cy = y
     for ri in range(len(tbl.rows)):
         cx = x
